@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #0a0a0b;
+  --bg-secondary: #141416;
+  --bg-card: #1a1a1f;
+  --border: #2a2a30;
+  --text-primary: #f0f0f2;
+  --text-secondary: #8a8a95;
+  --accent: #22c55e;
+  --accent-dim: #166534;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: "IBM Plex Mono", "JetBrains Mono", monospace;
+}

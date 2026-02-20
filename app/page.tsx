@@ -94,10 +94,10 @@ export default function Home() {
       <section className="max-w-3xl mx-auto px-6 pb-4">
         <div className="border border-[var(--border)] rounded-xl px-6 py-3.5 bg-[var(--bg-card)] flex items-center justify-between">
           <p className="text-sm text-[var(--text-secondary)]">
-            <span className="text-[var(--text-dim)]">Day 14/30</span> — AI Mastery Curriculum
+            <span className="text-[var(--text-dim)]">Day 9/30</span> — AI Agent Costs
           </p>
           <a
-            href="https://twitter.com/mikimujeeb"
+            href="https://x.com/__mujeeb__"
             target="_blank"
             className="text-sm text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors"
           >
@@ -199,11 +199,11 @@ export default function Home() {
       <footer className="border-t border-[var(--border)] px-6 py-8 text-center text-xs text-[var(--text-dim)]">
         AgentQuote — built in public by{" "}
         <a
-          href="https://twitter.com/mikimujeeb"
+          href="https://x.com/__mujeeb__"
           className="text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors"
           target="_blank"
         >
-          @mikimujeeb
+          @__mujeeb__
         </a>
       </footer>
     </main>

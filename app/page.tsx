@@ -94,7 +94,7 @@ export default function Home() {
       <section className="max-w-3xl mx-auto px-6 pb-4">
         <div className="border border-[var(--border)] rounded-xl px-6 py-3.5 bg-[var(--bg-card)] flex items-center justify-between">
           <p className="text-sm text-[var(--text-secondary)]">
-            <span className="text-[var(--text-dim)]">Day 9/30</span> — AI Mastery Curriculum
+            <span className="text-[var(--text-dim)]">Day 14/30</span> — AI Mastery Curriculum
           </p>
           <a
             href="https://twitter.com/mikimujeeb"
@@ -112,21 +112,54 @@ export default function Home() {
           <summary className="px-6 py-3.5 cursor-pointer text-sm text-[var(--text-primary)] select-none hover:bg-[var(--bg-secondary)] transition-colors">
             What&apos;s coming next
           </summary>
-          <div className="px-6 pb-4 space-y-2.5 border-t border-[var(--border)] pt-3">
+          <div className="px-6 pb-4 space-y-3 border-t border-[var(--border)] pt-3">
             {[
-              { done: true, text: "Compare estimates vs actual costs (CSV upload)" },
-              { done: false, text: "SDK usage tracker for real-time monitoring" },
-              { done: false, text: "Multi-provider cost comparison (Anthropic, OpenAI, Google)" },
-              { done: false, text: "Team dashboards for agency-wide cost tracking" },
+              {
+                text: "White-label PDF reports",
+                desc: "Brand with your agency logo, send to clients as a professional cost proposal",
+                badge: "Coming next",
+                badgeColor: "text-[var(--accent)] border-[var(--accent)]/30 bg-[var(--accent)]/10",
+              },
+              {
+                text: "Estimate vs actual comparison",
+                desc: "Upload usage CSV to calibrate future estimates",
+                badge: "Available",
+                badgeColor: "text-[var(--accent)] border-[var(--accent)]/30 bg-[var(--accent)]/10",
+                done: true,
+              },
+              {
+                text: "Full proposal generation",
+                desc: "Scope, timeline, deliverables + cost breakdown in one document",
+              },
+              {
+                text: "Post-project cost tracking",
+                desc: "Monitor real spend against your original estimate",
+              },
+              {
+                text: "Client verification portal",
+                desc: "Let clients independently verify agency quotes",
+              },
             ].map((item) => (
-              <p key={item.text} className="text-sm text-[var(--text-secondary)] flex items-center gap-2.5">
-                {item.done ? (
-                  <span className="text-[var(--accent)] text-xs">✓</span>
-                ) : (
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--border)] inline-block" />
-                )}
-                {item.text}
-              </p>
+              <div key={item.text} className="flex items-start gap-2.5">
+                <span className="mt-1.5 shrink-0">
+                  {item.done ? (
+                    <span className="text-[var(--accent)] text-xs">✓</span>
+                  ) : (
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--border)] inline-block" />
+                  )}
+                </span>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm text-[var(--text-primary)] font-medium">{item.text}</p>
+                    {item.badge && (
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full border ${item.badgeColor}`}>
+                        {item.done ? "✓ " : ""}{item.badge}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-[var(--text-secondary)] mt-0.5">{item.desc}</p>
+                </div>
+              </div>
             ))}
           </div>
         </details>

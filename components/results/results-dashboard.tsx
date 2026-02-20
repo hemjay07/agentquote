@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useRef } from "react";
 import type {
   ParsedSystem,
   CostEstimate,
@@ -7,6 +8,9 @@ import type {
 } from "@/lib/knowledge-base";
 import FlowDiagram from "./flow-diagram";
 import RecommendationCards from "./recommendation-card";
+import CSVUpload from "./csv-upload";
+import EmailCapture from "../shared/email-capture";
+import FeedbackBox from "../shared/feedback-box";
 
 interface ResultsDashboardProps {
   parsed: ParsedSystem;
@@ -18,54 +22,116 @@ interface ResultsDashboardProps {
 }
 
 function formatMoney(n: number): string {
-  if (n >= 1000) return `$${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+  if (n >= 1000)
+    return `$${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
   if (n >= 1) return `$${n.toFixed(2)}`;
   return `$${n.toFixed(4)}`;
 }
 
-// ── Render markdown-ish text into React elements ──
+// ── Parse recommendation text into sections ──
+
+function parseRecommendationSections(text: string) {
+  const sections: {
+    costSummary: string;
+    optimizations: string;
+    warnings: string;
+  } = { costSummary: "", optimizations: "", warnings: "" };
+
+  if (!text) return sections;
+
+  const costMatch = text.match(
+    /=== COST SUMMARY ===([\s\S]*?)(?====[^=]|$)/
+  );
+  const optMatch = text.match(
+    /=== OPTIMIZATION RECOMMENDATIONS ===([\s\S]*?)(?====[^=]|$)/
+  );
+  const warnMatch = text.match(/=== WARNINGS ===([\s\S]*?)(?====[^=]|$)/);
+
+  if (costMatch) sections.costSummary = costMatch[1].trim();
+  if (optMatch) sections.optimizations = optMatch[1].trim();
+  if (warnMatch) sections.warnings = warnMatch[1].trim();
+
+  return sections;
+}
+
+// ── Try to extract cost driver info ──
+
+function parseCostDriver(
+  costSummary: string,
+  parsed: ParsedSystem
+): { name: string; pct: number; reason: string } | null {
+  if (!costSummary) return null;
+
+  // Try "X accounts for 65% of total cost" or "biggest cost driver is X (65%)"
+  const driverMatch =
+    costSummary.match(
+      /(?:biggest|largest|primary|main)\s*(?:cost\s*)?driver[:\s]*(?:is\s*)?(?:the\s*)?([^,.(]+)/i
+    ) ||
+    costSummary.match(
+      /([^,.(]+?)(?:\s*(?:is|accounts?\s*for|represents?)\s*(?:the\s*)?(?:biggest|largest|primary))/i
+    );
+
+  // Find a percentage near the driver mention
+  if (driverMatch) {
+    const nearby = costSummary.slice(
+      Math.max(0, driverMatch.index! - 30),
+      driverMatch.index! + driverMatch[0].length + 60
+    );
+    const pctMatch = nearby.match(/(\d+)%/);
+    if (pctMatch) {
+      return {
+        name: driverMatch[1].trim().replace(/\*\*/g, ""),
+        pct: parseInt(pctMatch[1]),
+        reason: "of total monthly cost",
+      };
+    }
+  }
+
+  // Fall back: find any agent name + percentage
+  for (const agent of parsed.agents) {
+    if (!agent.name) continue;
+    const escaped = agent.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const pattern = new RegExp(`${escaped}[^\\d]*(\\d+)%`, "i");
+    const match = costSummary.match(pattern);
+    if (match) {
+      return {
+        name: agent.name,
+        pct: parseInt(match[1]),
+        reason: "of total monthly cost",
+      };
+    }
+  }
+
+  return null;
+}
+
+// ── Render markdown-ish text ──
 
 function renderFormattedText(text: string) {
   const lines = text.split("\n");
   const elements: React.ReactNode[] = [];
 
   lines.forEach((line, i) => {
-    const key = i;
-    if (line.trim() === "") {
-      elements.push(<div key={key} className="h-2" />);
+    const trimmed = line.trim();
+    if (!trimmed) {
+      elements.push(<div key={i} className="h-2" />);
       return;
     }
-    if (/^-{3,}$|^_{3,}$/.test(line.trim())) {
-      elements.push(<hr key={key} className="border-[var(--border)] my-3" />);
-      return;
-    }
-    if (line.includes("RECOMMENDATION") && line.includes("**")) {
-      elements.push(
-        <h3 key={key} className="text-sm font-bold text-[var(--text-primary)] mt-4 mb-1">
-          {line.replace(/\*\*/g, "")}
-        </h3>
-      );
-      return;
-    }
-    if (/^(What to change|Estimated savings|Quality impact|Implementation difficulty|WORST CASE|COST DRIVER|TOKEN ACCUMULATION):?/i.test(line.trim())) {
-      elements.push(
-        <p key={key} className="text-xs uppercase tracking-wide text-[var(--text-secondary)] mt-3 mb-1 font-semibold">
-          {line.trim()}
-        </p>
-      );
+    if (/^-{3,}$|^_{3,}$/.test(trimmed)) {
+      elements.push(<hr key={i} className="border-[#27272a] my-3" />);
       return;
     }
     if (/^[\s]*(•|─|├|└|│|-)/.test(line)) {
       elements.push(
-        <p key={key} className="text-sm text-[var(--text-secondary)] pl-4 leading-relaxed">
-          {renderInlineFormatting(line)}
+        <p key={i} className="text-sm text-[#a1a1aa] pl-4 leading-relaxed">
+          {renderInline(line)}
         </p>
       );
       return;
     }
     elements.push(
-      <p key={key} className="text-sm text-[var(--text-secondary)] leading-relaxed">
-        {renderInlineFormatting(line)}
+      <p key={i} className="text-sm text-[#a1a1aa] leading-relaxed">
+        {renderInline(line)}
       </p>
     );
   });
@@ -73,7 +139,7 @@ function renderFormattedText(text: string) {
   return <>{elements}</>;
 }
 
-function renderInlineFormatting(text: string): React.ReactNode[] {
+function renderInline(text: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
   const regex = /(\*\*(.+?)\*\*|`(.+?)`)/g;
   let lastIndex = 0;
@@ -82,9 +148,20 @@ function renderInlineFormatting(text: string): React.ReactNode[] {
   while ((match = regex.exec(text)) !== null) {
     if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index));
     if (match[2]) {
-      parts.push(<strong key={match.index} className="text-[var(--text-primary)] font-semibold">{match[2]}</strong>);
+      parts.push(
+        <strong key={match.index} className="text-[#e4e4e7] font-semibold">
+          {match[2]}
+        </strong>
+      );
     } else if (match[3]) {
-      parts.push(<code key={match.index} className="text-[var(--accent)] bg-[var(--accent)]/10 px-1 py-0.5 rounded text-xs">{match[3]}</code>);
+      parts.push(
+        <code
+          key={match.index}
+          className="text-[#22c55e] bg-[#22c55e]/10 px-1 py-0.5 rounded text-xs"
+        >
+          {match[3]}
+        </code>
+      );
     }
     lastIndex = match.index + match[0].length;
   }
@@ -92,32 +169,58 @@ function renderInlineFormatting(text: string): React.ReactNode[] {
   return parts;
 }
 
+// ── Main component ──
+
 export default function ResultsDashboard({
   parsed,
   costs,
   recommendations,
   onBack,
 }: ResultsDashboardProps) {
-  const scenarios = [
-    { key: "low" as const, label: "Low", color: "text-green-400" },
-    { key: "mid" as const, label: "Mid", color: "text-yellow-400" },
-    { key: "high" as const, label: "High", color: "text-red-400" },
-  ];
+  const [showBreakdown, setShowBreakdown] = useState(false);
+  const [showCSV, setShowCSV] = useState(false);
+  const csvRef = useRef<HTMLDivElement>(null);
 
   const sections = parseRecommendationSections(recommendations);
+  const costDriver = parseCostDriver(sections.costSummary, parsed);
+
+  const low = costs.low.monthly_cost;
+  const mid = costs.mid.monthly_cost;
+  const high = costs.high.monthly_cost;
+  const midPosition = high > low ? ((mid - low) / (high - low)) * 100 : 50;
+  const cachingSavings = costs.mid.caching_savings_monthly;
+
+  const tweetText = `Just estimated my AI agent system costs with AgentQuote:\n\n${parsed.system_name}\n${formatMoney(low)} - ${formatMoney(high)}/month\n${parsed.agents.length} agents, ${parsed.daily_conversations} convos/day\n\nTry it free:`;
+  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
+
+  function handleCompare() {
+    setShowCSV(true);
+    setTimeout(() => {
+      csvRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  }
 
   return (
     <div>
+      {/* ── Section 1: Header ── */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1
-            className="text-2xl font-bold"
-            style={{ fontFamily: "Inter, sans-serif" }}
+          <p
+            style={{
+              fontSize: 11,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              color: "#71717a",
+            }}
           >
+            Cost Estimate
+          </p>
+          <h1 className="text-2xl font-bold text-[#e4e4e7] mt-1">
             {parsed.system_name}
           </h1>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">
-            {parsed.agents.length} agent{parsed.agents.length > 1 ? "s" : ""} ·{" "}
+          <p className="text-[13px] text-[#71717a] mt-1">
+            {parsed.agents.length} agent
+            {parsed.agents.length > 1 ? "s" : ""} ·{" "}
             {parsed.pattern.replace(/_/g, " ")} ·{" "}
             {parsed.daily_conversations.toLocaleString()} convos/day ·{" "}
             {parsed.avg_turns_per_conversation} turns
@@ -125,183 +228,227 @@ export default function ResultsDashboard({
         </div>
         <button
           onClick={onBack}
-          className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)] rounded px-3 py-1.5"
+          className="text-xs text-[#a1a1aa] hover:text-[#e4e4e7] border border-[#27272a] hover:border-[#3f3f46] rounded-lg px-3 py-1.5 transition-colors"
         >
           ← Edit Assumptions
         </button>
       </div>
 
-      {/* Cost table */}
-      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl overflow-hidden mb-6">
-        <div className="px-4 py-3 border-b border-[var(--border)]">
-          <h2 className="text-xs text-[var(--text-secondary)] uppercase tracking-wide">
-            Monthly Cost Estimate
-          </h2>
+      {/* ── Section 2: Hero Cost Card ── */}
+      <div className="bg-[#111113] border border-[#27272a] rounded-[16px] p-6 mb-6">
+        <div className="text-center">
+          <p
+            style={{
+              fontSize: 12,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              color: "#71717a",
+            }}
+          >
+            Estimated monthly cost
+          </p>
+          <p
+            className="text-[48px] font-bold text-white mt-2 tracking-tight"
+            style={{ fontFamily: "var(--font-mono, monospace)" }}
+          >
+            {formatMoney(mid)}
+          </p>
+          <p className="text-[13px] text-[#71717a] mt-1">
+            {formatMoney(costs.mid.cost_per_conversation)} per conversation ·{" "}
+            {formatMoney(costs.mid.daily_cost)} per day
+          </p>
         </div>
-        <div className="grid grid-cols-3 divide-x divide-[var(--border)]">
-          {scenarios.map(({ key, label, color }) => {
-            const c = costs[key];
-            return (
-              <div key={key} className="p-4 text-center">
-                <p className={`text-xs uppercase tracking-wide mb-2 ${color}`}>
-                  {label}
-                </p>
-                <p className={`text-2xl font-bold ${color}`}>
-                  {formatMoney(c.monthly_cost)}
-                </p>
-                <p className="text-xs text-[var(--text-secondary)] mt-1">/month</p>
-                <div className="mt-3 space-y-1 text-xs text-[var(--text-secondary)]">
-                  <p>{formatMoney(c.cost_per_conversation)} per convo</p>
-                  <p>{formatMoney(c.daily_cost)} per day</p>
-                  <p>{c.total_calls_per_convo} API calls/convo</p>
-                  <p>{c.input_tokens_per_convo.toLocaleString()} input tokens</p>
-                </div>
-                {c.caching_applicable && c.caching_savings_monthly > 0 && (
-                  <div className="mt-3 bg-green-900/20 border border-green-800/30 rounded px-2 py-1">
-                    <p className="text-xs text-green-400">
-                      Cache saves {formatMoney(c.caching_savings_monthly)}/mo
-                    </p>
-                  </div>
-                )}
+
+        {/* Range bar */}
+        <div className="mt-6 px-2">
+          <div className="relative">
+            <div
+              className="h-[6px] rounded-full"
+              style={{
+                background:
+                  "linear-gradient(to right, #166534, #713f12, #7f1d1d)",
+              }}
+            />
+            <div
+              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white border-2 border-[#22c55e]"
+              style={{ left: `${midPosition}%`, marginLeft: -6 }}
+            />
+          </div>
+          <div className="flex justify-between mt-2">
+            <div>
+              <p className="text-[11px] text-[#52525b]">Best case</p>
+              <p
+                className="text-lg text-[#a1a1aa] font-medium"
+                style={{ fontFamily: "var(--font-mono, monospace)" }}
+              >
+                {formatMoney(low)}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[11px] text-[#52525b]">Worst case</p>
+              <p
+                className="text-lg text-[#a1a1aa] font-medium"
+                style={{ fontFamily: "var(--font-mono, monospace)" }}
+              >
+                {formatMoney(high)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {cachingSavings > 0 && (
+          <p className="text-center text-[12px] text-[#52525b] mt-4">
+            With prompt caching, save up to {formatMoney(cachingSavings)}/mo
+          </p>
+        )}
+      </div>
+
+      {/* ── Section 3: Two-column grid ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        {/* Left: Cost driver */}
+        <div className="bg-[#111113] border border-[#27272a] rounded-[12px] p-5">
+          <p
+            style={{
+              fontSize: 11,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              color: "#71717a",
+              marginBottom: 12,
+            }}
+          >
+            Biggest cost driver
+          </p>
+          {costDriver ? (
+            <>
+              <div className="flex items-baseline gap-2">
+                <span
+                  className="text-[28px] font-bold text-white"
+                  style={{ fontFamily: "var(--font-mono, monospace)" }}
+                >
+                  {costDriver.pct}%
+                </span>
+                <span className="text-sm text-[#a1a1aa]">
+                  {costDriver.reason}
+                </span>
               </div>
-            );
-          })}
+              <p className="text-sm text-[#a1a1aa] mt-2">{costDriver.name}</p>
+            </>
+          ) : (
+            <>
+              <div className="flex items-baseline gap-2">
+                <span
+                  className="text-[28px] font-bold text-white"
+                  style={{ fontFamily: "var(--font-mono, monospace)" }}
+                >
+                  {costs.mid.primary_model
+                    .replace("claude-", "")
+                    .replace(/-4-5$/, "")
+                    .replace(/-/g, " ")}
+                </span>
+              </div>
+              <p className="text-sm text-[#a1a1aa] mt-2">
+                {formatMoney(costs.mid.monthly_cost)}/mo ·{" "}
+                {costs.mid.total_calls_per_convo} API calls/convo ·{" "}
+                {costs.mid.input_tokens_per_convo.toLocaleString()} input
+                tokens/convo
+              </p>
+            </>
+          )}
         </div>
+
+        {/* Right: Architecture */}
+        <FlowDiagram parsed={parsed} />
       </div>
 
-      {/* Quick stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <Stat
-          label="Model"
-          value={costs.mid.primary_model.replace("claude-", "").replace("-4-5", "")}
-        />
-        <Stat
-          label="Annual (mid)"
-          value={formatMoney(costs.mid.monthly_cost * 12)}
-        />
-        <Stat
-          label="Variance"
-          value={`${Math.round((costs.high.monthly_cost / costs.low.monthly_cost) * 100)}%`}
-          warning={costs.high.monthly_cost / costs.low.monthly_cost > 5}
-        />
-        <Stat
-          label="Failure overhead"
-          value={`${costs.mid.failure_token_overhead.toLocaleString()} tokens`}
-          warning={costs.mid.failure_token_overhead > 10000}
-        />
-      </div>
-
-      {/* Architecture diagram (CSS-based) */}
-      <FlowDiagram parsed={parsed} />
-
-      {/* Optimization recommendations (card-based) */}
+      {/* ── Section 4: Recommendations ── */}
       {sections.optimizations && (
         <div className="mb-6">
-          <h2 className="text-xs text-[var(--text-secondary)] uppercase tracking-wide mb-3">
-            Optimization Recommendations
-          </h2>
           <RecommendationCards text={sections.optimizations} />
         </div>
       )}
 
-      {/* Warnings */}
+      {/* ── Warnings ── */}
       {sections.warnings && (
-        <div className="bg-red-900/10 border border-red-800/30 rounded-xl mb-6">
-          <div className="px-4 py-3 border-b border-red-800/30 flex items-center gap-2">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-red-400">
+        <div className="bg-[#ef4444]/5 border border-[#ef4444]/20 rounded-[12px] mb-6">
+          <div className="px-4 py-3 border-b border-[#ef4444]/20 flex items-center gap-2">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className="text-[#ef4444]"
+            >
               <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
               <line x1="12" y1="9" x2="12" y2="13" />
               <line x1="12" y1="17" x2="12.01" y2="17" />
             </svg>
-            <h2 className="text-xs text-red-400 uppercase tracking-wide">
+            <p
+              style={{
+                fontSize: 11,
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                color: "#ef4444",
+              }}
+            >
               Warnings
-            </h2>
+            </p>
           </div>
-          <div className="p-4">
-            {renderFormattedText(sections.warnings)}
-          </div>
+          <div className="p-4">{renderFormattedText(sections.warnings)}</div>
         </div>
       )}
 
-      {/* Detailed analysis */}
-      {sections.costSummary && (
-        <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl mb-6">
-          <div className="px-4 py-3 border-b border-[var(--border)]">
-            <h2 className="text-xs text-[var(--text-secondary)] uppercase tracking-wide">
-              Detailed Analysis
-            </h2>
-          </div>
-          <div className="p-4">
+      {/* ── Section 5: Detailed breakdown (collapsed) ── */}
+      <div className="mb-6">
+        <button
+          onClick={() => setShowBreakdown(!showBreakdown)}
+          className="flex items-center gap-2 text-sm text-[#a1a1aa] hover:text-[#e4e4e7] transition-colors"
+        >
+          <span className="text-xs w-4 text-center">
+            {showBreakdown ? "\u2212" : "+"}
+          </span>
+          Detailed cost breakdown per agent
+        </button>
+        {showBreakdown && sections.costSummary && (
+          <div className="mt-3 bg-[#111113] border border-[#27272a] rounded-[12px] p-4">
             {renderFormattedText(sections.costSummary)}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Share section */}
-      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-4 mb-6">
-        <h3 className="text-xs text-[var(--text-secondary)] uppercase tracking-wide mb-3">
-          Share
-        </h3>
+      {/* ── Section 6: Actions row ── */}
+      <div className="grid grid-cols-3 gap-3 mb-6">
         <a
-          href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(
-            `Just estimated my AI agent system costs with @AgentQuote:\n\n${parsed.system_name}\n${formatMoney(costs.low.monthly_cost)} - ${formatMoney(costs.high.monthly_cost)}/month\n${parsed.agents.length} agents, ${parsed.daily_conversations} convos/day\n\nTry it free:`
-          )}`}
+          href={twitterUrl}
           target="_blank"
-          className="inline-block text-sm text-[var(--accent)] hover:underline"
+          rel="noopener noreferrer"
+          className="bg-[#111113] border border-[#27272a] hover:border-[#3f3f46] rounded-[12px] px-4 py-3 text-center text-sm text-[#a1a1aa] hover:text-[#e4e4e7] transition-colors"
         >
-          Share on Twitter →
+          Share on Twitter
         </a>
+        <button
+          onClick={handleCompare}
+          className="bg-[#111113] border border-[#27272a] hover:border-[#3f3f46] rounded-[12px] px-4 py-3 text-sm text-[#a1a1aa] hover:text-[#e4e4e7] transition-colors"
+        >
+          Compare with real data
+        </button>
+        <button
+          onClick={onBack}
+          className="bg-[#111113] border border-[#27272a] hover:border-[#3f3f46] rounded-[12px] px-4 py-3 text-sm text-[#a1a1aa] hover:text-[#e4e4e7] transition-colors"
+        >
+          Edit assumptions
+        </button>
+      </div>
+
+      {/* CSV Upload (toggleable) */}
+      <div ref={csvRef}>{showCSV && <CSVUpload estimate={costs} />}</div>
+
+      {/* ── Section 7: Footer — email + feedback ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+        <EmailCapture estimate={costs} />
+        <FeedbackBox />
       </div>
     </div>
   );
-}
-
-// ── Helper components ──
-
-function Stat({
-  label,
-  value,
-  warning = false,
-}: {
-  label: string;
-  value: string;
-  warning?: boolean;
-}) {
-  return (
-    <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-3">
-      <p className="text-xs text-[var(--text-secondary)]">{label}</p>
-      <p
-        className={`text-sm font-semibold mt-1 ${
-          warning ? "text-[var(--warning)]" : ""
-        }`}
-      >
-        {value}
-      </p>
-    </div>
-  );
-}
-
-// ── Parse recommendation text into sections ──
-
-function parseRecommendationSections(text: string) {
-  const sections: {
-    diagram: string;
-    costSummary: string;
-    optimizations: string;
-    warnings: string;
-  } = { diagram: "", costSummary: "", optimizations: "", warnings: "" };
-
-  if (!text) return sections;
-
-  const diagramMatch = text.match(/=== ARCHITECTURE DIAGRAM ===([\s\S]*?)(?====[^=]|$)/);
-  const costMatch = text.match(/=== COST SUMMARY ===([\s\S]*?)(?====[^=]|$)/);
-  const optMatch = text.match(/=== OPTIMIZATION RECOMMENDATIONS ===([\s\S]*?)(?====[^=]|$)/);
-  const warnMatch = text.match(/=== WARNINGS ===([\s\S]*?)(?====[^=]|$)/);
-
-  if (diagramMatch) sections.diagram = diagramMatch[1].trim();
-  if (costMatch) sections.costSummary = costMatch[1].trim();
-  if (optMatch) sections.optimizations = optMatch[1].trim();
-  if (warnMatch) sections.warnings = warnMatch[1].trim();
-
-  return sections;
 }

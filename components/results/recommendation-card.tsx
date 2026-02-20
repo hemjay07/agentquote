@@ -13,7 +13,6 @@ interface Recommendation {
 function parseRecommendations(text: string): Recommendation[] {
   if (!text) return [];
 
-  // Split on "RECOMMENDATION N:" patterns
   const parts = text.split(/(?=RECOMMENDATION\s+\d+)/i);
   const recs: Recommendation[] = [];
 
@@ -21,26 +20,38 @@ function parseRecommendations(text: string): Recommendation[] {
     const trimmed = part.trim();
     if (!trimmed) continue;
 
-    // Extract title
-    const titleMatch = trimmed.match(/RECOMMENDATION\s+\d+[:\s]*\*?\*?(.+?)(?:\*\*)?$/m);
+    const titleMatch = trimmed.match(
+      /RECOMMENDATION\s+\d+[:\s]*\*?\*?(.+?)(?:\*\*)?$/m
+    );
     const title = titleMatch
       ? titleMatch[1].replace(/\*\*/g, "").trim()
       : trimmed.split("\n")[0].replace(/\*\*/g, "").trim();
 
-    // Extract savings amount
-    const savingsMatch = trimmed.match(/(?:save|savings?)[:\s]*\$?([\d,]+(?:\.\d+)?)\s*(?:\/mo|per month|monthly)?/i)
-      || trimmed.match(/\$([\d,]+(?:\.\d+)?)\s*(?:\/mo|per month|monthly)\s*(?:sav)/i);
+    const savingsMatch =
+      trimmed.match(
+        /(?:save|savings?)[:\s]*\$?([\d,]+(?:\.\d+)?)\s*(?:\/mo|per month|monthly)?/i
+      ) ||
+      trimmed.match(
+        /\$([\d,]+(?:\.\d+)?)\s*(?:\/mo|per month|monthly)\s*(?:sav)/i
+      );
     const savings = savingsMatch ? `$${savingsMatch[1]}/mo` : null;
 
-    // Extract difficulty
-    const diffMatch = trimmed.match(/(?:implementation\s+)?difficulty[:\s]*(easy|moderate|hard|trivial|complex)/i);
-    const difficulty = diffMatch ? diffMatch[1].charAt(0).toUpperCase() + diffMatch[1].slice(1).toLowerCase() : null;
+    const diffMatch = trimmed.match(
+      /(?:implementation\s+)?difficulty[:\s]*(easy|moderate|hard|trivial|complex)/i
+    );
+    const difficulty = diffMatch
+      ? diffMatch[1].charAt(0).toUpperCase() +
+        diffMatch[1].slice(1).toLowerCase()
+      : null;
 
-    // Extract quality impact
-    const qualityMatch = trimmed.match(/quality\s*impact[:\s]*(none|minor|moderate|significant|major|minimal)/i);
-    const quality = qualityMatch ? qualityMatch[1].charAt(0).toUpperCase() + qualityMatch[1].slice(1).toLowerCase() : null;
+    const qualityMatch = trimmed.match(
+      /quality\s*impact[:\s]*(none|minor|moderate|significant|major|minimal)/i
+    );
+    const quality = qualityMatch
+      ? qualityMatch[1].charAt(0).toUpperCase() +
+        qualityMatch[1].slice(1).toLowerCase()
+      : null;
 
-    // Body is everything after the first line
     const lines = trimmed.split("\n");
     const body = lines.slice(1).join("\n").trim();
 
@@ -50,18 +61,54 @@ function parseRecommendations(text: string): Recommendation[] {
   return recs;
 }
 
-function difficultyColor(d: string): string {
+function difficultyColor(d: string): {
+  text: string;
+  bg: string;
+  border: string;
+} {
   const lower = d.toLowerCase();
-  if (lower === "easy" || lower === "trivial") return "text-green-400 border-green-800/40";
-  if (lower === "moderate") return "text-yellow-400 border-yellow-800/40";
-  return "text-red-400 border-red-800/40";
+  if (lower === "easy" || lower === "trivial")
+    return {
+      text: "text-[#22c55e]",
+      bg: "bg-[#22c55e]/10",
+      border: "border-[#22c55e]/20",
+    };
+  if (lower === "moderate")
+    return {
+      text: "text-[#f59e0b]",
+      bg: "bg-[#f59e0b]/10",
+      border: "border-[#f59e0b]/20",
+    };
+  return {
+    text: "text-[#ef4444]",
+    bg: "bg-[#ef4444]/10",
+    border: "border-[#ef4444]/20",
+  };
 }
 
-function qualityColor(q: string): string {
+function qualityColor(q: string): {
+  text: string;
+  bg: string;
+  border: string;
+} {
   const lower = q.toLowerCase();
-  if (lower === "none" || lower === "minimal") return "text-green-400 border-green-800/40";
-  if (lower === "minor") return "text-yellow-400 border-yellow-800/40";
-  return "text-red-400 border-red-800/40";
+  if (lower === "none" || lower === "minimal")
+    return {
+      text: "text-[#22c55e]",
+      bg: "bg-[#22c55e]/10",
+      border: "border-[#22c55e]/20",
+    };
+  if (lower === "minor")
+    return {
+      text: "text-[#f59e0b]",
+      bg: "bg-[#f59e0b]/10",
+      border: "border-[#f59e0b]/20",
+    };
+  return {
+    text: "text-[#ef4444]",
+    bg: "bg-[#ef4444]/10",
+    border: "border-[#ef4444]/20",
+  };
 }
 
 function renderBody(text: string) {
@@ -75,12 +122,19 @@ function renderBody(text: string) {
       return;
     }
     if (/^-{3,}$|^_{3,}$/.test(trimmed)) {
-      elements.push(<hr key={i} className="border-[var(--border)] my-2" />);
+      elements.push(<hr key={i} className="border-[#27272a] my-2" />);
       return;
     }
-    if (/^(What to change|Estimated savings|Quality impact|Implementation difficulty|Prerequisites?):?/i.test(trimmed)) {
+    if (
+      /^(What to change|Estimated savings|Quality impact|Implementation difficulty|Prerequisites?):?/i.test(
+        trimmed
+      )
+    ) {
       elements.push(
-        <p key={i} className="text-xs uppercase tracking-wide text-[var(--text-secondary)] mt-2 mb-0.5 font-semibold">
+        <p
+          key={i}
+          className="text-xs uppercase tracking-wide text-[#a1a1aa] mt-2 mb-0.5 font-semibold"
+        >
           {trimmed}
         </p>
       );
@@ -88,14 +142,14 @@ function renderBody(text: string) {
     }
     if (/^[\s]*(•|─|├|└|│|-)/.test(line)) {
       elements.push(
-        <p key={i} className="text-sm text-[var(--text-secondary)] pl-3 leading-relaxed">
+        <p key={i} className="text-sm text-[#a1a1aa] pl-3 leading-relaxed">
           {renderInline(line)}
         </p>
       );
       return;
     }
     elements.push(
-      <p key={i} className="text-sm text-[var(--text-secondary)] leading-relaxed">
+      <p key={i} className="text-sm text-[#a1a1aa] leading-relaxed">
         {renderInline(line)}
       </p>
     );
@@ -113,9 +167,20 @@ function renderInline(text: string): React.ReactNode[] {
   while ((match = regex.exec(text)) !== null) {
     if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index));
     if (match[2]) {
-      parts.push(<strong key={match.index} className="text-[var(--text-primary)] font-semibold">{match[2]}</strong>);
+      parts.push(
+        <strong key={match.index} className="text-[#e4e4e7] font-semibold">
+          {match[2]}
+        </strong>
+      );
     } else if (match[3]) {
-      parts.push(<code key={match.index} className="text-[var(--accent)] bg-[var(--accent)]/10 px-1 py-0.5 rounded text-xs">{match[3]}</code>);
+      parts.push(
+        <code
+          key={match.index}
+          className="text-[#22c55e] bg-[#22c55e]/10 px-1 py-0.5 rounded text-xs"
+        >
+          {match[3]}
+        </code>
+      );
     }
     lastIndex = match.index + match[0].length;
   }
@@ -129,7 +194,6 @@ export default function RecommendationCards({ text }: { text: string }) {
 
   if (recs.length === 0) return null;
 
-  // Calculate total potential savings
   const totalSavings = recs.reduce((sum, r) => {
     if (!r.savings) return sum;
     const num = parseFloat(r.savings.replace(/[$,/mo]/g, ""));
@@ -137,55 +201,77 @@ export default function RecommendationCards({ text }: { text: string }) {
   }, 0);
 
   return (
-    <div className="mb-6">
-      {/* Summary banner */}
-      {totalSavings > 0 && (
-        <div className="bg-green-900/15 border border-green-800/30 rounded-xl px-4 py-3 mb-3">
-          <p className="text-sm text-green-400">
-            Found {recs.length} optimization{recs.length !== 1 ? "s" : ""} that could save up to <strong>${totalSavings.toLocaleString()}/month</strong>
+    <div>
+      {/* Header row */}
+      <div className="flex items-center justify-between mb-3">
+        <p
+          style={{
+            fontSize: 11,
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            color: "#71717a",
+          }}
+        >
+          Optimizations
+        </p>
+        {totalSavings > 0 && (
+          <p
+            className="text-sm text-[#22c55e] font-medium"
+            style={{ fontFamily: "var(--font-mono, monospace)" }}
+          >
+            Save up to ${totalSavings.toLocaleString()}/mo
           </p>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Recommendation cards */}
+      {/* Cards */}
       <div className="space-y-2">
         {recs.map((rec, i) => (
           <div
             key={i}
-            className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl overflow-hidden"
+            className="bg-[#111113] border border-[#27272a] rounded-[12px] overflow-hidden"
           >
             <button
               onClick={() => setExpanded(expanded === i ? null : i)}
-              className="w-full px-4 py-3 text-left"
+              className="w-full px-4 py-3 text-left hover:bg-[#27272a]/20 transition-colors"
             >
-              <div className="flex items-start justify-between gap-3">
-                <p className="text-sm font-medium text-[var(--text-primary)]">
-                  {rec.title}
-                </p>
-                <span className="text-xs text-[var(--text-secondary)] shrink-0 mt-0.5">
-                  {expanded === i ? "−" : "+"}
+              {/* Pills row ABOVE title */}
+              <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                {rec.savings && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#22c55e]/10 border border-[#22c55e]/20 text-[#22c55e]">
+                    {rec.savings}
+                  </span>
+                )}
+                {rec.difficulty && (() => {
+                  const c = difficultyColor(rec.difficulty);
+                  return (
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded-full ${c.bg} border ${c.border} ${c.text}`}
+                    >
+                      {rec.difficulty}
+                    </span>
+                  );
+                })()}
+                {rec.quality &&
+                  rec.quality.toLowerCase() !== "none" && (() => {
+                    const c = qualityColor(rec.quality);
+                    return (
+                      <span
+                        className={`text-[10px] px-2 py-0.5 rounded-full ${c.bg} border ${c.border} ${c.text}`}
+                      >
+                        Quality: {rec.quality}
+                      </span>
+                    );
+                  })()}
+                <span className="ml-auto text-xs text-[#52525b] shrink-0">
+                  {expanded === i ? "\u2212" : "+"}
                 </span>
               </div>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {rec.savings && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full border border-green-800/40 text-green-400">
-                    {rec.savings} savings
-                  </span>
-                )}
-                {rec.difficulty && (
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full border ${difficultyColor(rec.difficulty)}`}>
-                    {rec.difficulty}
-                  </span>
-                )}
-                {rec.quality && (
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full border ${qualityColor(rec.quality)}`}>
-                    Quality: {rec.quality}
-                  </span>
-                )}
-              </div>
+              {/* Title below pills */}
+              <p className="text-sm font-medium text-[#e4e4e7]">{rec.title}</p>
             </button>
             {expanded === i && rec.body && (
-              <div className="px-4 pb-4 border-t border-[var(--border)] pt-3">
+              <div className="px-4 pb-4 border-t border-[#27272a] pt-3">
                 {renderBody(rec.body)}
               </div>
             )}

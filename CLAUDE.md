@@ -62,10 +62,17 @@ Every file does one thing, every function has one job. Keep logic, business, UI,
 - Day 5: Memory strategies (entity saves 55% tokens vs buffer)
 
 ## Known Issues / TODO
-- [x] Architecture diagram — replaced with CSS flow diagram
+- [x] Architecture diagram — pure SVG flow diagram
 - [x] Recommendations — card-based accordion with parsed pills
 - [x] Usage counter — refreshes via refreshKey prop
+- [x] Results page — hero cost card, range bar, two-column layout, actions row
+- [x] Recommender — increased max_tokens to 4096 for complete output
+- [ ] White-label PDF report generator (Phase 1 priority)
 - [ ] Deploy to Vercel
+- [ ] Landing page — add real user count after launch
+- [ ] Full proposal generation (Phase 2)
+- [ ] Post-project cost tracking (Phase 3)
+- [ ] Client verification portal (Phase 4)
 
 ## Commands
 ```bash

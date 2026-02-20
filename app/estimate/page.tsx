@@ -12,9 +12,6 @@ import GuidedForm from "@/components/input/guided-form";
 import SmartPrompt from "@/components/input/smart-prompt";
 import AssumptionReview from "@/components/review/assumption-review";
 import ResultsDashboard from "@/components/results/results-dashboard";
-import CSVUpload from "@/components/results/csv-upload";
-import EmailCapture from "@/components/shared/email-capture";
-import FeedbackBox from "@/components/shared/feedback-box";
 import UsageCounter from "@/components/shared/usage-counter";
 import Link from "next/link";
 
@@ -291,25 +288,14 @@ export default function EstimatePage() {
 
         {/* ── STEP 3: Results ── */}
         {step === "results" && parsed && costs && (
-          <div>
-            <ResultsDashboard
-              parsed={parsed}
-              costs={costs}
-              recommendations={recommendations}
-              optimizations={optimizations}
-              onRecalculate={handleRecalculate}
-              onBack={() => setStep("review")}
-            />
-
-            {/* CSV comparison */}
-            <CSVUpload estimate={costs} />
-
-            {/* Capture section */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-              <EmailCapture estimate={costs} />
-              <FeedbackBox />
-            </div>
-          </div>
+          <ResultsDashboard
+            parsed={parsed}
+            costs={costs}
+            recommendations={recommendations}
+            optimizations={optimizations}
+            onRecalculate={handleRecalculate}
+            onBack={() => setStep("review")}
+          />
         )}
       </div>
     </main>

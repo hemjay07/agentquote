@@ -208,7 +208,7 @@ export function calculateCosts(
     };
   }
 
-  return results as CostEstimate;
+  return results as unknown as CostEstimate;
 }
 
 

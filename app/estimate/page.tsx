@@ -39,6 +39,7 @@ export default function EstimatePage() {
     tool_specific_routing: false,
   });
   const [nonLLMServices, setNonLLMServices] = useState<NonLLMService[]>([]);
+  const [usageRefresh, setUsageRefresh] = useState(0);
 
   // ── Step 1 → 2: Parse description, move to review ──
   async function handleDescriptionSubmit(description: string) {
@@ -63,6 +64,7 @@ export default function EstimatePage() {
 
       // Decrement usage counter
       await fetch("/api/usage", { method: "POST" });
+      setUsageRefresh((n) => n + 1);
 
       setStep("review");
     } catch (err: any) {
@@ -119,6 +121,7 @@ export default function EstimatePage() {
 
       // Decrement usage counter
       await fetch("/api/usage", { method: "POST" });
+      setUsageRefresh((n) => n + 1);
 
       setStep("results");
     } catch (err: any) {
@@ -166,7 +169,7 @@ export default function EstimatePage() {
           <span className="text-[var(--accent)] font-bold text-lg">◆</span>
           <span className="font-semibold tracking-tight">AgentQuote</span>
         </Link>
-        <UsageCounter />
+        <UsageCounter refreshKey={usageRefresh} />
       </nav>
 
       {/* Progress indicator */}

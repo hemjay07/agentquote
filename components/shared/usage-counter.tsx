@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 
-export default function UsageCounter() {
+export default function UsageCounter({ refreshKey = 0 }: { refreshKey?: number }) {
   const [remaining, setRemaining] = useState<number | null>(null);
   const [total, setTotal] = useState(830);
 
@@ -14,7 +14,7 @@ export default function UsageCounter() {
         setTotal(data.total);
       })
       .catch(() => {});
-  }, []);
+  }, [refreshKey]);
 
   if (remaining === null) return null;
 

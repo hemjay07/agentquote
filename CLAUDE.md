@@ -42,7 +42,6 @@ Every file does one thing, every function has one job. Keep logic, business, UI,
 - Next.js 14 (App Router)
 - TypeScript
 - Tailwind CSS
-- @excalidraw/excalidraw (planned — for architecture diagrams)
 - Anthropic API (claude-haiku-4-5 for parse + recommend)
 
 ## API Budget
@@ -63,11 +62,9 @@ Every file does one thing, every function has one job. Keep logic, business, UI,
 - Day 5: Memory strategies (entity saves 55% tokens vs buffer)
 
 ## Known Issues / TODO
-- [ ] Architecture diagram shows raw markdown backticks — strip them
-- [ ] Recommendations show raw ** markdown — render as actual bold
-- [ ] Usage counter doesn't refresh after analysis completes
-- [ ] Excalidraw interactive diagram (replace text-based diagram)
-- [ ] Landing page stats need real data after launch
+- [x] Architecture diagram — replaced with CSS flow diagram
+- [x] Recommendations — card-based accordion with parsed pills
+- [x] Usage counter — refreshes via refreshKey prop
 - [ ] Deploy to Vercel
 
 ## Commands

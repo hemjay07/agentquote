@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import type {
   ParsedSystem,
   CostEstimate,
@@ -13,6 +13,7 @@ import SmartPrompt from "@/components/input/smart-prompt";
 import AssumptionReview from "@/components/review/assumption-review";
 import ResultsDashboard from "@/components/results/results-dashboard";
 import UsageCounter from "@/components/shared/usage-counter";
+import ProgressBar from "@/components/shared/progress-bar";
 import Link from "next/link";
 
 type Step = "input" | "review" | "results";
@@ -38,13 +39,24 @@ export default function EstimatePage() {
   const [nonLLMServices, setNonLLMServices] = useState<NonLLMService[]>([]);
   const [usageRefresh, setUsageRefresh] = useState(0);
 
+  // Progress bar refs for scroll-into-view
+  const parseProgressRef = useRef<HTMLDivElement>(null);
+  const calcProgressRef = useRef<HTMLDivElement>(null);
+
   // ── Step 1 → 2: Parse description, move to review ──
   async function handleDescriptionSubmit(description: string) {
     setLoading(true);
     setError(null);
 
+    // Scroll to progress bar
+    setTimeout(() => {
+      parseProgressRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 50);
+
     try {
-      // Call parse API (1 Haiku call, costs ~$0.003)
       const parseRes = await fetch("/api/parse", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -59,13 +71,14 @@ export default function EstimatePage() {
       const { parsed: parsedData } = await parseRes.json();
       setParsed(parsedData);
 
-      // Decrement usage counter
       await fetch("/api/usage", { method: "POST" });
       setUsageRefresh((n) => n + 1);
 
       setStep("review");
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "An error occurred";
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -89,8 +102,15 @@ export default function EstimatePage() {
     setOptimizations(opts);
     setNonLLMServices(services);
 
+    // Scroll to progress bar
+    setTimeout(() => {
+      calcProgressRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 50);
+
     try {
-      // Calculate costs (FREE — pure math)
       const calcRes = await fetch("/api/calculate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -105,7 +125,6 @@ export default function EstimatePage() {
       const { costs: costData } = await calcRes.json();
       setCosts(costData);
 
-      // Get recommendations (1 Haiku call, costs ~$0.003)
       const recRes = await fetch("/api/recommend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -116,13 +135,14 @@ export default function EstimatePage() {
       const { recommendations: recData } = await recRes.json();
       setRecommendations(recData);
 
-      // Decrement usage counter
       await fetch("/api/usage", { method: "POST" });
       setUsageRefresh((n) => n + 1);
 
       setStep("results");
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "An error occurred";
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -151,8 +171,10 @@ export default function EstimatePage() {
       if (!calcRes.ok) throw new Error("Recalculation failed");
       const { costs: costData } = await calcRes.json();
       setCosts(costData);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "An error occurred";
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -179,10 +201,16 @@ export default function EstimatePage() {
             return (
               <span key={s} className="flex items-center gap-3">
                 {i > 0 && (
-                  <span className={`w-8 h-px ${isPast ? "bg-[var(--accent)]" : "bg-[var(--border)]"}`} />
+                  <span
+                    className={`w-8 h-px ${isPast ? "bg-[var(--accent)]" : "bg-[var(--border)]"}`}
+                  />
                 )}
-                <span className={`flex items-center gap-1.5 ${isActive ? "text-[var(--accent)] font-medium" : isPast ? "text-[var(--accent)]/60" : "text-[var(--text-dim)]"}`}>
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold border ${isActive ? "border-[var(--accent)] bg-[var(--accent)]/10" : isPast ? "border-[var(--accent)]/40 bg-[var(--accent)]/5" : "border-[var(--border)]"}`}>
+                <span
+                  className={`flex items-center gap-1.5 ${isActive ? "text-[var(--accent)] font-medium" : isPast ? "text-[var(--accent)]/60" : "text-[var(--text-dim)]"}`}
+                >
+                  <span
+                    className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold border ${isActive ? "border-[var(--accent)] bg-[var(--accent)]/10" : isPast ? "border-[var(--accent)]/40 bg-[var(--accent)]/5" : "border-[var(--border)]"}`}
+                  >
                     {isPast ? "✓" : i + 1}
                   </span>
                   {labels[i]}
@@ -208,16 +236,6 @@ export default function EstimatePage() {
         </div>
       )}
 
-      {/* Loading overlay */}
-      {loading && (
-        <div className="max-w-4xl mx-auto px-6 pt-4">
-          <div className="bg-[var(--bg-card)] border border-[var(--accent)]/20 rounded-xl px-4 py-3 text-sm text-[var(--text-secondary)] flex items-center gap-2">
-            <span className="animate-pulse text-[var(--accent)]">◆</span>
-            Analyzing your system...
-          </div>
-        </div>
-      )}
-
       <div className="max-w-4xl mx-auto px-6 py-8">
         {/* ── STEP 1: Input ── */}
         {step === "input" && (
@@ -232,6 +250,19 @@ export default function EstimatePage() {
               Tell us about your agent architecture and we&apos;ll estimate the
               cost.
             </p>
+
+            {/* Parse progress bar — shown above input */}
+            <div ref={parseProgressRef}>
+              {step === "input" && loading && (
+                <div className="mb-6">
+                  <ProgressBar
+                    isLoading={loading}
+                    expectedDuration={3000}
+                    label="Parsing your description..."
+                  />
+                </div>
+              )}
+            </div>
 
             {/* Tab switcher */}
             <div className="flex gap-1 mb-6 border-b border-[var(--border)]">
@@ -276,14 +307,28 @@ export default function EstimatePage() {
 
         {/* ── STEP 2: Review assumptions ── */}
         {step === "review" && parsed && (
-          <AssumptionReview
-            parsed={parsed}
-            optimizations={optimizations}
-            nonLLMServices={nonLLMServices}
-            onCalculate={handleCalculate}
-            onBack={() => setStep("input")}
-            disabled={loading}
-          />
+          <div>
+            {/* Calculate progress bar — shown above review */}
+            <div ref={calcProgressRef}>
+              {loading && (
+                <div className="mb-6">
+                  <ProgressBar
+                    isLoading={loading}
+                    expectedDuration={10000}
+                    label="Generating cost estimate and optimizations..."
+                  />
+                </div>
+              )}
+            </div>
+            <AssumptionReview
+              parsed={parsed}
+              optimizations={optimizations}
+              nonLLMServices={nonLLMServices}
+              onCalculate={handleCalculate}
+              onBack={() => setStep("input")}
+              disabled={loading}
+            />
+          </div>
         )}
 
         {/* ── STEP 3: Results ── */}

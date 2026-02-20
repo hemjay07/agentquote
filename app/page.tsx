@@ -31,55 +31,50 @@ export default function Home() {
       <nav className="border-b border-[var(--border)] px-6 py-4 flex items-center justify-between max-w-6xl mx-auto">
         <div className="flex items-center gap-2">
           <span className="text-[var(--accent)] font-bold text-lg">◆</span>
-          <span className="font-semibold tracking-tight">AgentQuote</span>
+          <span className="font-semibold tracking-tight text-[var(--text-primary)]">
+            AgentQuote
+          </span>
         </div>
-        <span className="text-xs text-[var(--text-secondary)] border border-[var(--border)] rounded px-2 py-1">
+        <span className="text-[10px] text-[var(--text-dim)] border border-[var(--border)] rounded-full px-2.5 py-0.5 uppercase tracking-widest">
           beta
         </span>
       </nav>
 
       {/* Hero */}
-      <section className="max-w-4xl mx-auto px-6 pt-24 pb-8 text-center">
-        <p className="text-[var(--accent)] text-sm font-medium tracking-wide uppercase mb-4">
+      <section className="max-w-3xl mx-auto px-6 pt-28 pb-6 text-center">
+        <p className="text-[var(--accent)] text-xs font-semibold tracking-[0.2em] uppercase mb-5">
           Stop guessing. Start estimating.
         </p>
-        <h1
-          className="text-4xl md:text-5xl font-bold leading-tight mb-6"
-          style={{ fontFamily: "Inter, sans-serif" }}
-        >
+        <h1 className="text-4xl md:text-5xl font-bold leading-[1.15] mb-5 tracking-tight">
           Know what your AI agents
           <br />
           <span className="text-[var(--accent)]">will actually cost</span>
         </h1>
-        <p className="text-lg text-[var(--text-secondary)] max-w-xl mx-auto mb-10 leading-relaxed">
+        <p className="text-base text-[var(--text-secondary)] max-w-md mx-auto mb-8">
           Describe your system. Get cost estimates in seconds.
         </p>
         <Link
           href="/estimate"
-          className="inline-block bg-[var(--accent)] text-black font-semibold px-8 py-3 rounded-md hover:bg-green-400 transition-colors text-lg"
+          className="inline-block bg-[var(--accent)] text-black font-semibold px-8 py-3 rounded-lg hover:bg-[var(--accent-hover)] transition-colors text-base shadow-lg shadow-[var(--accent)]/10"
         >
           Estimate Your System →
         </Link>
-        <p className="text-xs text-[var(--text-secondary)] mt-4 max-w-lg mx-auto">
+        <p className="text-[11px] text-[var(--text-dim)] mt-5 max-w-lg mx-auto leading-relaxed">
           Built from real experiments: 4.8x multi-agent overhead · 49% max savings · 14 validated cost formulas
         </p>
       </section>
 
-      {/* Built from real experiments — compact */}
-      <section className="max-w-4xl mx-auto px-6 py-12">
-        <div className="border border-[var(--border)] rounded-lg p-6 bg-[var(--bg-card)]">
-          <h2
-            className="text-lg font-bold mb-3"
-            style={{ fontFamily: "Inter, sans-serif" }}
-          >
+      {/* Built from real experiments */}
+      <section className="max-w-3xl mx-auto px-6 py-14">
+        <div className="border border-[var(--border)] rounded-xl p-7 bg-[var(--bg-card)]">
+          <h2 className="text-base font-semibold mb-2 text-[var(--text-primary)]">
             Built from real experiments, not guesses
           </h2>
-          <p className="text-[var(--text-secondary)] text-sm leading-relaxed mb-5">
+          <p className="text-[var(--text-secondary)] text-sm leading-relaxed mb-6">
             Every formula comes from hands-on experiments building agent systems
-            from raw API calls. No frameworks, no abstractions — real token
-            counts and real dollar amounts.
+            from raw API calls. Real token counts, real dollar amounts.
           </p>
-          <div className="flex items-center justify-between text-center">
+          <div className="grid grid-cols-4 gap-4 text-center">
             {[
               { num: "5", label: "days of experiments" },
               { num: "14", label: "validated insights" },
@@ -87,12 +82,8 @@ export default function Home() {
               { num: "4.8x", label: "multi-agent overhead" },
             ].map((item) => (
               <div key={item.label}>
-                <p className="text-xl font-bold text-[var(--accent)]">
-                  {item.num}
-                </p>
-                <p className="text-xs text-[var(--text-secondary)]">
-                  {item.label}
-                </p>
+                <p className="text-lg font-bold text-[var(--accent)]">{item.num}</p>
+                <p className="text-[11px] text-[var(--text-dim)] mt-0.5">{item.label}</p>
               </div>
             ))}
           </div>
@@ -100,15 +91,15 @@ export default function Home() {
       </section>
 
       {/* Built in Public */}
-      <section className="max-w-4xl mx-auto px-6 pb-8">
-        <div className="border border-[var(--border)] rounded-lg px-6 py-3 bg-[var(--bg-card)] flex items-center justify-between">
+      <section className="max-w-3xl mx-auto px-6 pb-4">
+        <div className="border border-[var(--border)] rounded-xl px-6 py-3.5 bg-[var(--bg-card)] flex items-center justify-between">
           <p className="text-sm text-[var(--text-secondary)]">
-            Day 9/30 — AI Mastery Curriculum
+            <span className="text-[var(--text-dim)]">Day 9/30</span> — AI Mastery Curriculum
           </p>
           <a
             href="https://twitter.com/mikimujeeb"
             target="_blank"
-            className="text-sm text-[var(--accent)] hover:underline"
+            className="text-sm text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors"
           >
             Follow the build →
           </a>
@@ -116,54 +107,53 @@ export default function Home() {
       </section>
 
       {/* What's Coming */}
-      <section className="max-w-4xl mx-auto px-6 pb-8">
-        <details className="border border-[var(--border)] rounded-lg bg-[var(--bg-card)]">
-          <summary className="px-6 py-4 cursor-pointer text-sm font-medium text-[var(--text-primary)] select-none">
+      <section className="max-w-3xl mx-auto px-6 py-4">
+        <details className="border border-[var(--border)] rounded-xl bg-[var(--bg-card)] overflow-hidden">
+          <summary className="px-6 py-3.5 cursor-pointer text-sm text-[var(--text-primary)] select-none hover:bg-[var(--bg-secondary)] transition-colors">
             What&apos;s coming next
           </summary>
-          <div className="px-6 pb-4 space-y-2">
-            <p className="text-sm text-[var(--text-secondary)] flex items-center gap-2">
-              <span className="text-green-400">✓</span>
-              Compare estimates vs actual costs (CSV upload)
-            </p>
-            <p className="text-sm text-[var(--text-secondary)] flex items-center gap-2">
-              <span className="text-[var(--text-secondary)]">○</span>
-              SDK usage tracker for real-time monitoring
-            </p>
-            <p className="text-sm text-[var(--text-secondary)] flex items-center gap-2">
-              <span className="text-[var(--text-secondary)]">○</span>
-              Multi-provider cost comparison (Anthropic, OpenAI, Google)
-            </p>
-            <p className="text-sm text-[var(--text-secondary)] flex items-center gap-2">
-              <span className="text-[var(--text-secondary)]">○</span>
-              Team dashboards for agency-wide cost tracking
-            </p>
+          <div className="px-6 pb-4 space-y-2.5 border-t border-[var(--border)] pt-3">
+            {[
+              { done: true, text: "Compare estimates vs actual costs (CSV upload)" },
+              { done: false, text: "SDK usage tracker for real-time monitoring" },
+              { done: false, text: "Multi-provider cost comparison (Anthropic, OpenAI, Google)" },
+              { done: false, text: "Team dashboards for agency-wide cost tracking" },
+            ].map((item) => (
+              <p key={item.text} className="text-sm text-[var(--text-secondary)] flex items-center gap-2.5">
+                {item.done ? (
+                  <span className="text-[var(--accent)] text-xs">✓</span>
+                ) : (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--border)] inline-block" />
+                )}
+                {item.text}
+              </p>
+            ))}
           </div>
         </details>
       </section>
 
       {/* Email capture */}
-      <section className="max-w-4xl mx-auto px-6 pb-16">
-        <div className="border border-[var(--border)] rounded-lg p-6 bg-[var(--bg-card)] text-center">
-          <p className="text-sm font-medium mb-4">
+      <section className="max-w-3xl mx-auto px-6 pt-4 pb-20">
+        <div className="border border-[var(--border)] rounded-xl p-7 bg-[var(--bg-card)] text-center">
+          <p className="text-sm font-medium text-[var(--text-primary)] mb-4">
             Get notified when new features launch
           </p>
           {subscribed ? (
-            <p className="text-sm text-green-400">You&apos;re on the list.</p>
+            <p className="text-sm text-[var(--accent)]">You&apos;re on the list.</p>
           ) : (
-            <div className="flex items-center gap-2 max-w-md mx-auto">
+            <div className="flex items-center gap-2.5 max-w-md mx-auto">
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your@email.com"
-                className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border)] rounded px-3 py-2 text-sm focus:outline-none focus:border-[var(--accent)]"
+                className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-[var(--accent)] transition-colors placeholder:text-[var(--text-dim)]"
                 onKeyDown={(e) => e.key === "Enter" && handleSubscribe()}
               />
               <button
                 onClick={handleSubscribe}
                 disabled={loading || !email}
-                className="bg-[var(--accent)] text-black font-semibold px-5 py-2 rounded-md hover:bg-green-400 transition-colors disabled:opacity-50 text-sm whitespace-nowrap"
+                className="bg-[var(--accent)] text-black font-semibold px-5 py-2.5 rounded-lg hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50 text-sm whitespace-nowrap"
               >
                 {loading ? "..." : "Subscribe"}
               </button>
@@ -173,17 +163,15 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-[var(--border)] px-6 py-6 text-center text-xs text-[var(--text-secondary)]">
-        <p>
-          AgentQuote — built in public by{" "}
-          <a
-            href="https://twitter.com/mikimujeeb"
-            className="text-[var(--accent)] hover:underline"
-            target="_blank"
-          >
-            @mikimujeeb
-          </a>
-        </p>
+      <footer className="border-t border-[var(--border)] px-6 py-8 text-center text-xs text-[var(--text-dim)]">
+        AgentQuote — built in public by{" "}
+        <a
+          href="https://twitter.com/mikimujeeb"
+          className="text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors"
+          target="_blank"
+        >
+          @mikimujeeb
+        </a>
       </footer>
     </main>
   );

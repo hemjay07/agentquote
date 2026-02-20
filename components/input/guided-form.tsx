@@ -90,7 +90,7 @@ export default function GuidedForm({ onSubmit, disabled }: GuidedFormProps) {
           value={systemName}
           onChange={(e) => setSystemName(e.target.value)}
           placeholder="e.g., Customer Service Bot"
-          className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[var(--accent)]"
+          className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[var(--accent)]"
         />
       </div>
 
@@ -109,7 +109,7 @@ export default function GuidedForm({ onSubmit, disabled }: GuidedFormProps) {
           {agents.map((agent, i) => (
             <div
               key={i}
-              className="bg-[var(--bg-card)] border border-[var(--border)] rounded-md p-4 space-y-3"
+              className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-4 space-y-3"
             >
               <div className="flex items-center justify-between">
                 <span className="text-xs text-[var(--text-secondary)]">
@@ -249,7 +249,7 @@ export default function GuidedForm({ onSubmit, disabled }: GuidedFormProps) {
           <select
             value={pattern}
             onChange={(e) => setPattern(e.target.value)}
-            className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[var(--accent)]"
+            className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[var(--accent)]"
           >
             {Object.entries(PATTERN_PROFILES).map(([key, val]) => (
               <option key={key} value={key}>
@@ -265,7 +265,7 @@ export default function GuidedForm({ onSubmit, disabled }: GuidedFormProps) {
           <select
             value={memory}
             onChange={(e) => setMemory(e.target.value)}
-            className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[var(--accent)]"
+            className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[var(--accent)]"
           >
             {Object.entries(MEMORY_MULTIPLIERS).map(([key, val]) => (
               <option key={key} value={key}>
@@ -320,7 +320,7 @@ export default function GuidedForm({ onSubmit, disabled }: GuidedFormProps) {
       <button
         onClick={handleSubmit}
         disabled={disabled || agents.every((a) => !a.name)}
-        className="w-full bg-[var(--accent)] text-black font-semibold px-6 py-3 rounded-md hover:bg-green-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+        className="w-full bg-[var(--accent)] text-black font-semibold px-6 py-3 rounded-xl hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
       >
         Review Assumptions →
       </button>

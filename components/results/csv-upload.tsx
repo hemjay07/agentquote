@@ -92,7 +92,7 @@ export default function CSVUpload({ estimate }: CSVUploadProps) {
 
   if (!expanded && !analysis) {
     return (
-      <div className="bg-[var(--bg-card)] border border-dashed border-[var(--border)] rounded-md p-4 mt-6">
+      <div className="bg-[var(--bg-card)] border border-dashed border-[var(--border)] rounded-xl p-4 mt-6">
         <button
           onClick={() => setExpanded(true)}
           className="w-full text-left"
@@ -110,7 +110,7 @@ export default function CSVUpload({ estimate }: CSVUploadProps) {
   }
 
   return (
-    <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-md p-4 mt-6">
+    <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-4 mt-6">
       <h3 className="text-xs text-[var(--text-secondary)] uppercase tracking-wide mb-3">
         Compare with Real Costs
       </h3>
@@ -125,7 +125,7 @@ export default function CSVUpload({ estimate }: CSVUploadProps) {
 
           <div className="flex gap-3">
             <label className="flex-1 cursor-pointer">
-              <div className="border border-dashed border-[var(--border)] rounded-md p-4 text-center hover:border-[var(--accent)] transition-colors">
+              <div className="border border-dashed border-[var(--border)] rounded-xl p-4 text-center hover:border-[var(--accent)] transition-colors">
                 <p className="text-sm text-[var(--text-primary)]">
                   Upload CSV
                 </p>
@@ -143,7 +143,7 @@ export default function CSVUpload({ estimate }: CSVUploadProps) {
 
             <button
               onClick={handlePaste}
-              className="flex-1 border border-dashed border-[var(--border)] rounded-md p-4 text-center hover:border-[var(--accent)] transition-colors"
+              className="flex-1 border border-dashed border-[var(--border)] rounded-xl p-4 text-center hover:border-[var(--accent)] transition-colors"
             >
               <p className="text-sm text-[var(--text-primary)]">
                 Paste from Clipboard
@@ -170,7 +170,7 @@ export default function CSVUpload({ estimate }: CSVUploadProps) {
           {/* Comparison headline */}
           {analysis.comparison && (
             <div
-              className={`rounded-md p-4 ${
+              className={`rounded-xl p-4 ${
                 Math.abs(analysis.comparison.difference_pct) < 15
                   ? "bg-green-900/20 border border-green-800/30"
                   : analysis.comparison.difference_pct > 0

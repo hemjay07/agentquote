@@ -174,25 +174,32 @@ export default function EstimatePage() {
 
       {/* Progress indicator */}
       <div className="max-w-4xl mx-auto px-6 pt-6">
-        <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-          <span className={step === "input" ? "text-[var(--accent)]" : ""}>
-            01 Describe
-          </span>
-          <span>→</span>
-          <span className={step === "review" ? "text-[var(--accent)]" : ""}>
-            02 Review
-          </span>
-          <span>→</span>
-          <span className={step === "results" ? "text-[var(--accent)]" : ""}>
-            03 Results
-          </span>
+        <div className="flex items-center gap-3 text-xs">
+          {(["input", "review", "results"] as Step[]).map((s, i) => {
+            const labels = ["Describe", "Review", "Results"];
+            const isActive = step === s;
+            const isPast = ["input", "review", "results"].indexOf(step) > i;
+            return (
+              <span key={s} className="flex items-center gap-3">
+                {i > 0 && (
+                  <span className={`w-8 h-px ${isPast ? "bg-[var(--accent)]" : "bg-[var(--border)]"}`} />
+                )}
+                <span className={`flex items-center gap-1.5 ${isActive ? "text-[var(--accent)] font-medium" : isPast ? "text-[var(--accent)]/60" : "text-[var(--text-dim)]"}`}>
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold border ${isActive ? "border-[var(--accent)] bg-[var(--accent)]/10" : isPast ? "border-[var(--accent)]/40 bg-[var(--accent)]/5" : "border-[var(--border)]"}`}>
+                    {isPast ? "✓" : i + 1}
+                  </span>
+                  {labels[i]}
+                </span>
+              </span>
+            );
+          })}
         </div>
       </div>
 
       {/* Error banner */}
       {error && (
         <div className="max-w-4xl mx-auto px-6 pt-4">
-          <div className="bg-red-900/30 border border-red-800 rounded-md px-4 py-3 text-sm text-red-300">
+          <div className="bg-red-900/30 border border-red-800 rounded-xl px-4 py-3 text-sm text-red-300">
             {error}
             <button
               onClick={() => setError(null)}
@@ -207,8 +214,8 @@ export default function EstimatePage() {
       {/* Loading overlay */}
       {loading && (
         <div className="max-w-4xl mx-auto px-6 pt-4">
-          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-md px-4 py-3 text-sm text-[var(--text-secondary)] flex items-center gap-2">
-            <span className="animate-pulse">◆</span>
+          <div className="bg-[var(--bg-card)] border border-[var(--accent)]/20 rounded-xl px-4 py-3 text-sm text-[var(--text-secondary)] flex items-center gap-2">
+            <span className="animate-pulse text-[var(--accent)]">◆</span>
             Analyzing your system...
           </div>
         </div>

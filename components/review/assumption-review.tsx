@@ -100,7 +100,7 @@ export default function AssumptionReview({
 
       <div className="space-y-3">
         {/* System overview — collapsed summary */}
-        <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-md">
+        <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl">
           <div
             className="px-4 py-3 flex items-center justify-between cursor-pointer"
             onClick={() => setOverviewExpanded(!overviewExpanded)}
@@ -171,7 +171,7 @@ export default function AssumptionReview({
         </div>
 
         {/* Agent table */}
-        <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-md overflow-hidden">
+        <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--border)] text-xs text-[var(--text-secondary)] uppercase tracking-wide">
@@ -197,7 +197,7 @@ export default function AssumptionReview({
         </div>
 
         {/* Optimizations — collapsed */}
-        <details className="bg-[var(--bg-card)] border border-[var(--border)] rounded-md">
+        <details className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl">
           <summary className="px-4 py-3 cursor-pointer text-sm text-[var(--text-secondary)] select-none">
             Advanced: Optimizations in place
           </summary>
@@ -227,7 +227,7 @@ export default function AssumptionReview({
         </details>
 
         {/* Non-LLM services — collapsed */}
-        <details className="bg-[var(--bg-card)] border border-[var(--border)] rounded-md">
+        <details className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl">
           <summary className="px-4 py-3 cursor-pointer text-sm text-[var(--text-secondary)] select-none">
             Advanced: Non-LLM services
           </summary>
@@ -303,7 +303,7 @@ export default function AssumptionReview({
         <button
           onClick={() => onCalculate(parsed, opts, services)}
           disabled={disabled}
-          className="bg-[var(--accent)] text-black font-semibold px-8 py-3 rounded-md hover:bg-green-400 transition-colors disabled:opacity-50 text-sm"
+          className="bg-[var(--accent)] text-black font-semibold px-8 py-3 rounded-xl hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50 text-sm"
         >
           Calculate Costs →
         </button>

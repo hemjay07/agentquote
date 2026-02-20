@@ -140,7 +140,7 @@ export default function RecommendationCards({ text }: { text: string }) {
     <div className="mb-6">
       {/* Summary banner */}
       {totalSavings > 0 && (
-        <div className="bg-green-900/15 border border-green-800/30 rounded-md px-4 py-3 mb-3">
+        <div className="bg-green-900/15 border border-green-800/30 rounded-xl px-4 py-3 mb-3">
           <p className="text-sm text-green-400">
             Found {recs.length} optimization{recs.length !== 1 ? "s" : ""} that could save up to <strong>${totalSavings.toLocaleString()}/month</strong>
           </p>
@@ -152,7 +152,7 @@ export default function RecommendationCards({ text }: { text: string }) {
         {recs.map((rec, i) => (
           <div
             key={i}
-            className="bg-[var(--bg-card)] border border-[var(--border)] rounded-md overflow-hidden"
+            className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl overflow-hidden"
           >
             <button
               onClick={() => setExpanded(expanded === i ? null : i)}

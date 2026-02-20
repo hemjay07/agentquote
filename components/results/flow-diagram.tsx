@@ -24,7 +24,7 @@ export default function FlowDiagram({ parsed }: { parsed: ParsedSystem }) {
   const hasTools = parsed.agents.some((a) => a.has_tools);
 
   return (
-    <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-md mb-6">
+    <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl mb-6">
       <div className="px-4 py-3 border-b border-[var(--border)]">
         <h2 className="text-xs text-[var(--text-secondary)] uppercase tracking-wide">
           Architecture
@@ -107,7 +107,7 @@ export default function FlowDiagram({ parsed }: { parsed: ParsedSystem }) {
                   }}
                 >
                   <p className="text-sm font-medium text-[var(--text-primary)]">RAG</p>
-                  <p className="text-xs text-[var(--accent)] mt-0.5">
+                  <p className="text-xs text-[var(--accent)] mt-0.5 line-clamp-2">
                     {parsed.rag_details || "Vector DB"}
                   </p>
                 </div>

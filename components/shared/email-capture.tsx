@@ -41,7 +41,7 @@ export default function EmailCapture({ estimate }: EmailCaptureProps) {
 
   if (submitted) {
     return (
-      <div className="bg-[var(--bg-card)] border border-green-800/30 rounded-md p-4">
+      <div className="bg-[var(--bg-card)] border border-green-800/30 rounded-xl p-4">
         <p className="text-sm text-green-400">
           ✓ You&apos;re on the list.{" "}
           {reminderDate && "We'll remind you to compare with real costs."}
@@ -51,7 +51,7 @@ export default function EmailCapture({ estimate }: EmailCaptureProps) {
   }
 
   return (
-    <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-md p-4">
+    <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-4">
       <h3 className="text-xs text-[var(--text-secondary)] uppercase tracking-wide mb-3">
         Join the Waitlist
       </h3>
@@ -81,7 +81,7 @@ export default function EmailCapture({ estimate }: EmailCaptureProps) {
         <button
           onClick={handleSubmit}
           disabled={loading || !email}
-          className="w-full bg-[var(--accent)] text-black font-semibold px-4 py-2 rounded-md hover:bg-green-400 transition-colors disabled:opacity-50 text-sm"
+          className="w-full bg-[var(--accent)] text-black font-semibold px-4 py-2 rounded-xl hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50 text-sm"
         >
           {loading ? "Saving..." : "Subscribe"}
         </button>

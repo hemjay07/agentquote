@@ -39,7 +39,7 @@ export default function SmartPrompt({ onSubmit, disabled }: SmartPromptProps) {
           Step 1: Copy this prompt and paste it into your AI assistant
         </h3>
         <div className="relative">
-          <pre className="bg-[var(--bg-card)] border border-[var(--border)] rounded-md p-4 text-xs text-[var(--text-secondary)] whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
+          <pre className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-4 text-xs text-[var(--text-secondary)] whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
             {SMART_PROMPT}
           </pre>
           <button
@@ -62,13 +62,13 @@ export default function SmartPrompt({ onSubmit, disabled }: SmartPromptProps) {
           placeholder="Paste the response from Claude, ChatGPT, or any AI assistant..."
           disabled={disabled}
           rows={8}
-          className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-md p-4 text-sm leading-relaxed resize-y focus:outline-none focus:border-[var(--accent)] placeholder:text-[var(--text-secondary)]/50 disabled:opacity-50"
+          className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-4 text-sm leading-relaxed resize-y focus:outline-none focus:border-[var(--accent)] placeholder:text-[var(--text-secondary)]/50 disabled:opacity-50"
         />
         <div className="flex justify-end mt-4">
           <button
             onClick={() => onSubmit(response)}
             disabled={disabled || !response.trim()}
-            className="bg-[var(--accent)] text-black font-semibold px-6 py-2 rounded-md hover:bg-green-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            className="bg-[var(--accent)] text-black font-semibold px-6 py-2 rounded-xl hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
           >
             Analyze →
           </button>

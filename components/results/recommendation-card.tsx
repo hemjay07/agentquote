@@ -61,6 +61,29 @@ function parseRecommendations(text: string): Recommendation[] {
   return recs;
 }
 
+// ── Split body into tier1 (what to change) and tier2 (full analysis) ──
+
+function splitContent(body: string): { tier1: string; tier2: string } {
+  const whatToChangeMatch = body.match(
+    /What to change:?\s*([\s\S]*?)(?=Estimated savings|Quality impact|Implementation difficulty|$)/i
+  );
+
+  const tier1 = whatToChangeMatch
+    ? whatToChangeMatch[1].trim()
+    : body
+        .split("\n")
+        .filter((l) => l.trim())
+        .slice(0, 3)
+        .join("\n");
+
+  const tier2Match = body.match(/(Estimated savings[\s\S]*)/i);
+  const tier2 = tier2Match ? tier2Match[1].trim() : "";
+
+  return { tier1, tier2 };
+}
+
+// ── Color helpers ──
+
 function difficultyColor(d: string): {
   text: string;
   bg: string;
@@ -110,6 +133,8 @@ function qualityColor(q: string): {
     border: "border-[#ef4444]/20",
   };
 }
+
+// ── Text rendering ──
 
 function renderBody(text: string) {
   const lines = text.split("\n");
@@ -188,9 +213,12 @@ function renderInline(text: string): React.ReactNode[] {
   return parts;
 }
 
+// ── Main component ──
+
 export default function RecommendationCards({ text }: { text: string }) {
   const recs = parseRecommendations(text);
   const [expanded, setExpanded] = useState<number | null>(null);
+  const [showFullAnalysis, setShowFullAnalysis] = useState<number | null>(null);
 
   if (recs.length === 0) return null;
 
@@ -232,7 +260,10 @@ export default function RecommendationCards({ text }: { text: string }) {
             className="bg-[#111113] border border-[#27272a] rounded-[12px] overflow-hidden"
           >
             <button
-              onClick={() => setExpanded(expanded === i ? null : i)}
+              onClick={() => {
+                setExpanded(expanded === i ? null : i);
+                setShowFullAnalysis(null);
+              }}
               className="w-full px-4 py-3 text-left hover:bg-[#27272a]/20 transition-colors"
             >
               {/* Pills row ABOVE title */}
@@ -242,18 +273,20 @@ export default function RecommendationCards({ text }: { text: string }) {
                     {rec.savings}
                   </span>
                 )}
-                {rec.difficulty && (() => {
-                  const c = difficultyColor(rec.difficulty);
-                  return (
-                    <span
-                      className={`text-[10px] px-2 py-0.5 rounded-full ${c.bg} border ${c.border} ${c.text}`}
-                    >
-                      {rec.difficulty}
-                    </span>
-                  );
-                })()}
+                {rec.difficulty &&
+                  (() => {
+                    const c = difficultyColor(rec.difficulty);
+                    return (
+                      <span
+                        className={`text-[10px] px-2 py-0.5 rounded-full ${c.bg} border ${c.border} ${c.text}`}
+                      >
+                        {rec.difficulty}
+                      </span>
+                    );
+                  })()}
                 {rec.quality &&
-                  rec.quality.toLowerCase() !== "none" && (() => {
+                  rec.quality.toLowerCase() !== "none" &&
+                  (() => {
                     const c = qualityColor(rec.quality);
                     return (
                       <span
@@ -270,11 +303,51 @@ export default function RecommendationCards({ text }: { text: string }) {
               {/* Title below pills */}
               <p className="text-sm font-medium text-[#e4e4e7]">{rec.title}</p>
             </button>
-            {expanded === i && rec.body && (
-              <div className="px-4 pb-4 border-t border-[#27272a] pt-3">
-                {renderBody(rec.body)}
-              </div>
-            )}
+
+            {/* Two-tier expanded content */}
+            {expanded === i &&
+              rec.body &&
+              (() => {
+                const { tier1, tier2 } = splitContent(rec.body);
+                return (
+                  <div className="px-4 pb-4 border-t border-[#27272a] pt-3">
+                    {/* Tier 1: What to change */}
+                    {renderBody(tier1)}
+
+                    {/* Tier 2: Full analysis (hidden behind link) */}
+                    {tier2 && (
+                      <>
+                        {showFullAnalysis === i ? (
+                          <>
+                            <div className="mt-3 pt-3 border-t border-[#27272a]">
+                              {renderBody(tier2)}
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowFullAnalysis(null);
+                              }}
+                              className="text-xs text-[#a1a1aa] mt-2 hover:text-[#e4e4e7] transition-colors"
+                            >
+                              Hide details
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowFullAnalysis(i);
+                            }}
+                            className="text-xs text-[#22c55e] mt-3 hover:underline"
+                          >
+                            Show full analysis →
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
           </div>
         ))}
       </div>

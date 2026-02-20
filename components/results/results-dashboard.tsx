@@ -62,7 +62,6 @@ function parseCostDriver(
 ): { name: string; pct: number; reason: string } | null {
   if (!costSummary) return null;
 
-  // Try "X accounts for 65% of total cost" or "biggest cost driver is X (65%)"
   const driverMatch =
     costSummary.match(
       /(?:biggest|largest|primary|main)\s*(?:cost\s*)?driver[:\s]*(?:is\s*)?(?:the\s*)?([^,.(]+)/i
@@ -71,7 +70,6 @@ function parseCostDriver(
       /([^,.(]+?)(?:\s*(?:is|accounts?\s*for|represents?)\s*(?:the\s*)?(?:biggest|largest|primary))/i
     );
 
-  // Find a percentage near the driver mention
   if (driverMatch) {
     const nearby = costSummary.slice(
       Math.max(0, driverMatch.index! - 30),
@@ -87,7 +85,6 @@ function parseCostDriver(
     }
   }
 
-  // Fall back: find any agent name + percentage
   for (const agent of parsed.agents) {
     if (!agent.name) continue;
     const escaped = agent.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -105,35 +102,209 @@ function parseCostDriver(
   return null;
 }
 
-// ── Render markdown-ish text ──
+// ── Parse warnings into individual items ──
+
+function parseWarnings(
+  text: string
+): { title: string; summary: string; details: string }[] {
+  if (!text) return [];
+
+  // Try splitting by numbered items (1., 2., etc.)
+  const numberedParts = text.split(/\n(?=\d+\.\s+)/);
+  if (numberedParts.filter((p) => p.trim()).length > 1) {
+    return numberedParts
+      .filter((p) => p.trim())
+      .map((part) => {
+        const lines = part.trim().split("\n");
+        const title = lines[0]
+          .replace(/^\d+\.\s*/, "")
+          .replace(/\*\*/g, "")
+          .trim();
+        const rest = lines.slice(1);
+        const summary =
+          rest
+            .find((l) => l.trim() && !/^-{3,}$/.test(l.trim()))
+            ?.replace(/^-\s*/, "")
+            .trim()
+            .slice(0, 120) || "";
+        const details = rest.join("\n").trim();
+        return { title, summary, details };
+      });
+  }
+
+  // Try splitting by bold headers (**HEADER**)
+  const boldParts = text.split(/\n(?=\*\*[^*]+\*\*)/);
+  if (boldParts.filter((p) => p.trim()).length > 1) {
+    return boldParts
+      .filter((p) => p.trim())
+      .map((part) => {
+        const lines = part.trim().split("\n");
+        const title = lines[0].replace(/\*\*/g, "").trim();
+        const rest = lines.slice(1);
+        const summary =
+          rest
+            .find((l) => l.trim())
+            ?.replace(/^-\s*/, "")
+            .trim()
+            .slice(0, 120) || "";
+        const details = rest.join("\n").trim();
+        return { title, summary, details };
+      });
+  }
+
+  // Fallback: whole text as one warning
+  const lines = text.trim().split("\n");
+  return [
+    {
+      title: lines[0]
+        .replace(/\*\*/g, "")
+        .replace(/^\d+\.\s*/, "")
+        .trim(),
+      summary:
+        lines[1]
+          ?.replace(/^-\s*/, "")
+          .trim()
+          .slice(0, 120) || "",
+      details: lines.slice(1).join("\n").trim(),
+    },
+  ];
+}
+
+// ── Render markdown table ──
+
+function renderMarkdownTable(
+  tableLines: string[],
+  blockKey: number
+): React.ReactNode {
+  const rows = tableLines
+    .filter(
+      (line) => line.trim().startsWith("|") && line.trim().endsWith("|")
+    )
+    .map((line) =>
+      line
+        .split("|")
+        .slice(1, -1)
+        .map((cell) => cell.trim())
+    );
+
+  // Filter out separator rows (all dashes/colons)
+  const dataRows = rows.filter(
+    (row) => !row.every((cell) => /^[-:]+$/.test(cell))
+  );
+
+  if (dataRows.length < 2) return null;
+
+  const header = dataRows[0];
+  const body = dataRows.slice(1);
+
+  return (
+    <div key={`table-${blockKey}`} className="overflow-x-auto my-3">
+      <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+        <thead>
+          <tr style={{ borderBottom: "1px solid #27272a" }}>
+            {header.map((cell, i) => (
+              <th
+                key={i}
+                className="py-2 px-3 text-left text-xs uppercase tracking-wide"
+                style={{ color: "#71717a", fontWeight: 500 }}
+              >
+                {cell.replace(/\*\*/g, "")}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {body.map((row, i) => (
+            <tr key={i} style={{ borderBottom: "1px solid #1a1a1e" }}>
+              {row.map((cell, j) => (
+                <td
+                  key={j}
+                  className="py-2 px-3"
+                  style={{
+                    color: "#a1a1aa",
+                    fontFamily:
+                      j > 0
+                        ? "var(--font-mono, monospace)"
+                        : "inherit",
+                    fontSize: "13px",
+                  }}
+                >
+                  {renderInline(cell)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ── Render markdown-ish text with table support ──
 
 function renderFormattedText(text: string) {
   const lines = text.split("\n");
-  const elements: React.ReactNode[] = [];
 
-  lines.forEach((line, i) => {
-    const trimmed = line.trim();
-    if (!trimmed) {
-      elements.push(<div key={i} className="h-2" />);
-      return;
+  // Split into blocks: table blocks vs text blocks
+  const blocks: { type: "text" | "table"; lines: string[] }[] = [];
+  let currentBlock: { type: "text" | "table"; lines: string[] } = {
+    type: "text",
+    lines: [],
+  };
+
+  for (const line of lines) {
+    const isTableLine =
+      line.trim().startsWith("|") && line.trim().endsWith("|");
+
+    if (isTableLine && currentBlock.type !== "table") {
+      if (currentBlock.lines.length > 0) blocks.push(currentBlock);
+      currentBlock = { type: "table", lines: [line] };
+    } else if (!isTableLine && currentBlock.type === "table") {
+      blocks.push(currentBlock);
+      currentBlock = { type: "text", lines: [line] };
+    } else {
+      currentBlock.lines.push(line);
     }
-    if (/^-{3,}$|^_{3,}$/.test(trimmed)) {
-      elements.push(<hr key={i} className="border-[#27272a] my-3" />);
-      return;
+  }
+  if (currentBlock.lines.length > 0) blocks.push(currentBlock);
+
+  const elements: React.ReactNode[] = [];
+  blocks.forEach((block, blockIdx) => {
+    if (block.type === "table") {
+      const tableEl = renderMarkdownTable(block.lines, blockIdx);
+      if (tableEl) elements.push(tableEl);
+    } else {
+      block.lines.forEach((line, i) => {
+        const key = `${blockIdx}-${i}`;
+        const trimmed = line.trim();
+        if (!trimmed) {
+          elements.push(<div key={key} className="h-2" />);
+          return;
+        }
+        if (/^-{3,}$|^_{3,}$/.test(trimmed)) {
+          elements.push(
+            <hr key={key} className="border-[#27272a] my-3" />
+          );
+          return;
+        }
+        if (/^[\s]*(•|─|├|└|│|-)/.test(line)) {
+          elements.push(
+            <p
+              key={key}
+              className="text-sm text-[#a1a1aa] pl-4 leading-relaxed"
+            >
+              {renderInline(line)}
+            </p>
+          );
+          return;
+        }
+        elements.push(
+          <p key={key} className="text-sm text-[#a1a1aa] leading-relaxed">
+            {renderInline(line)}
+          </p>
+        );
+      });
     }
-    if (/^[\s]*(•|─|├|└|│|-)/.test(line)) {
-      elements.push(
-        <p key={i} className="text-sm text-[#a1a1aa] pl-4 leading-relaxed">
-          {renderInline(line)}
-        </p>
-      );
-      return;
-    }
-    elements.push(
-      <p key={i} className="text-sm text-[#a1a1aa] leading-relaxed">
-        {renderInline(line)}
-      </p>
-    );
   });
 
   return <>{elements}</>;
@@ -179,10 +350,13 @@ export default function ResultsDashboard({
 }: ResultsDashboardProps) {
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [showCSV, setShowCSV] = useState(false);
+  const [warningsOpen, setWarningsOpen] = useState(false);
+  const [expandedWarning, setExpandedWarning] = useState<number | null>(null);
   const csvRef = useRef<HTMLDivElement>(null);
 
   const sections = parseRecommendationSections(recommendations);
   const costDriver = parseCostDriver(sections.costSummary, parsed);
+  const warningItems = parseWarnings(sections.warnings);
 
   const low = costs.low.monthly_cost;
   const mid = costs.mid.monthly_cost;
@@ -303,62 +477,47 @@ export default function ResultsDashboard({
         )}
       </div>
 
-      {/* ── Section 3: Two-column grid ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        {/* Left: Cost driver */}
-        <div className="bg-[#111113] border border-[#27272a] rounded-[12px] p-5">
+      {/* ── Section 3: Cost driver (compact row) ── */}
+      <div className="bg-[#111113] border border-[#27272a] rounded-[12px] px-5 py-4 mb-4">
+        <div className="flex items-center gap-4 flex-wrap">
           <p
+            className="shrink-0"
             style={{
               fontSize: 11,
               textTransform: "uppercase",
               letterSpacing: "0.08em",
               color: "#71717a",
-              marginBottom: 12,
             }}
           >
             Biggest cost driver
           </p>
           {costDriver ? (
-            <>
-              <div className="flex items-baseline gap-2">
-                <span
-                  className="text-[28px] font-bold text-white"
-                  style={{ fontFamily: "var(--font-mono, monospace)" }}
-                >
-                  {costDriver.pct}%
-                </span>
-                <span className="text-sm text-[#a1a1aa]">
-                  {costDriver.reason}
-                </span>
-              </div>
-              <p className="text-sm text-[#a1a1aa] mt-2">{costDriver.name}</p>
-            </>
+            <div className="flex items-baseline gap-2 min-w-0">
+              <span
+                className="text-xl font-bold text-white shrink-0"
+                style={{ fontFamily: "var(--font-mono, monospace)" }}
+              >
+                {costDriver.pct}%
+              </span>
+              <span className="text-sm text-[#a1a1aa]">
+                · {costDriver.name}
+              </span>
+            </div>
           ) : (
-            <>
-              <div className="flex items-baseline gap-2">
-                <span
-                  className="text-[28px] font-bold text-white"
-                  style={{ fontFamily: "var(--font-mono, monospace)" }}
-                >
-                  {costs.mid.primary_model
-                    .replace("claude-", "")
-                    .replace(/-4-5$/, "")
-                    .replace(/-/g, " ")}
-                </span>
-              </div>
-              <p className="text-sm text-[#a1a1aa] mt-2">
-                {formatMoney(costs.mid.monthly_cost)}/mo ·{" "}
-                {costs.mid.total_calls_per_convo} API calls/convo ·{" "}
-                {costs.mid.input_tokens_per_convo.toLocaleString()} input
-                tokens/convo
-              </p>
-            </>
+            <span className="text-sm text-[#a1a1aa]">
+              {costs.mid.primary_model
+                .replace("claude-", "")
+                .replace(/-4-5$/, "")
+                .replace(/-/g, " ")}{" "}
+              · {formatMoney(costs.mid.monthly_cost)}/mo ·{" "}
+              {costs.mid.total_calls_per_convo} API calls/convo
+            </span>
           )}
         </div>
-
-        {/* Right: Architecture */}
-        <FlowDiagram parsed={parsed} />
       </div>
+
+      {/* ── Section 3b: Architecture diagram (full width) ── */}
+      <FlowDiagram parsed={parsed} />
 
       {/* ── Section 4: Recommendations ── */}
       {sections.optimizations && (
@@ -367,35 +526,55 @@ export default function ResultsDashboard({
         </div>
       )}
 
-      {/* ── Warnings ── */}
-      {sections.warnings && (
-        <div className="bg-[#ef4444]/5 border border-[#ef4444]/20 rounded-[12px] mb-6">
-          <div className="px-4 py-3 border-b border-[#ef4444]/20 flex items-center gap-2">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className="text-[#ef4444]"
-            >
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-              <line x1="12" y1="9" x2="12" y2="13" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-            <p
-              style={{
-                fontSize: 11,
-                textTransform: "uppercase",
-                letterSpacing: "0.08em",
-                color: "#ef4444",
-              }}
-            >
-              Warnings
-            </p>
-          </div>
-          <div className="p-4">{renderFormattedText(sections.warnings)}</div>
+      {/* ── Warnings (collapsible with individual accordions) ── */}
+      {warningItems.length > 0 && (
+        <div className="bg-[#111113] border border-[#27272a] rounded-[12px] mb-6">
+          <button
+            onClick={() => setWarningsOpen(!warningsOpen)}
+            className="w-full px-5 py-4 flex items-center justify-between text-left"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-amber-400 text-sm">⚠</span>
+              <span className="text-sm text-amber-400">
+                {warningItems.length} warning
+                {warningItems.length !== 1 ? "s" : ""} found
+              </span>
+            </div>
+            <span className="text-[#a1a1aa] text-xs">
+              {warningsOpen ? "\u2212" : "+"}
+            </span>
+          </button>
+          {warningsOpen && (
+            <div className="px-5 pb-4 space-y-2">
+              {warningItems.map((w, i) => (
+                <div
+                  key={i}
+                  className="border border-[#27272a] rounded-lg overflow-hidden"
+                >
+                  <button
+                    onClick={() =>
+                      setExpandedWarning(expandedWarning === i ? null : i)
+                    }
+                    className="w-full px-4 py-3 text-left hover:bg-[#27272a]/20 transition-colors"
+                  >
+                    <p className="text-sm font-medium text-[#e4e4e7]">
+                      {w.title}
+                    </p>
+                    {w.summary && (
+                      <p className="text-xs text-[#a1a1aa] mt-1">
+                        {w.summary}
+                      </p>
+                    )}
+                  </button>
+                  {expandedWarning === i && w.details && (
+                    <div className="px-4 pb-3 border-t border-[#27272a] pt-2">
+                      {renderFormattedText(w.details)}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

@@ -4,6 +4,18 @@ All notable fixes and improvements to AgentQuote, documented in reverse chronolo
 
 ---
 
+## 2026-02-21 — Guardrail-Aware Failure Overhead
+
+**Calculator: failure cap now depends on guardrails** (`lib/calculator.ts`)
+- Previously the failure overhead was capped at 100% unconditionally.
+- Problem: if the user's system has no loop detection or retry limits, failures genuinely can compound — the high scenario *should* reflect that risk.
+- Now the cap is conditional on `optimizations.loop_detection`:
+  - **With loop detection (100% cap):** Guardrails stop runaway loops, so failures can at most double input tokens.
+  - **Without loop detection (300% cap):** Reflects the real risk of unguarded tool spirals where failed calls retry with growing context and no circuit breaker.
+- This makes the estimator more honest: systems without guardrails see higher worst-case costs, which motivates implementing loop detection.
+
+---
+
 ## 2026-02-21 — Audit Fixes & Calculator Accuracy
 
 **Commit:** `17952b7` fix: audit fixes — form validation, calculator accuracy, UX polish

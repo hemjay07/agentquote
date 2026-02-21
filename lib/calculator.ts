@@ -132,9 +132,12 @@ export function calculateCosts(
     }
 
     const expectedFailures = toolCallsPerConvo * failureRate;
-    // Cap failure overhead at 100% of input tokens (prevents runaway in high scenarios)
+    // Cap failure overhead based on guardrails:
+    // With loop detection: cap at 100% (guardrails stop runaway loops)
+    // Without loop detection: cap at 300% (reflects real risk of unguarded tool spirals)
     const rawFailureMultiplier = expectedFailures * CONTEXT_GROWTH_PER_FAILURE;
-    const cappedFailureMultiplier = Math.min(rawFailureMultiplier, 1.0);
+    const failureCap = optimizations?.loop_detection ? 1.0 : 3.0;
+    const cappedFailureMultiplier = Math.min(rawFailureMultiplier, failureCap);
     const failureTokenOverhead = Math.round(
       totalInputTokens * cappedFailureMultiplier
     );

@@ -74,9 +74,9 @@ export default function Home() {
             Every formula comes from hands-on experiments building agent systems
             from raw API calls. Real token counts, real dollar amounts.
           </p>
-          <div className="grid grid-cols-4 gap-4 text-center">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
             {[
-              { num: "5", label: "days of experiments" },
+              { num: "8", label: "architecture patterns" },
               { num: "14", label: "validated insights" },
               { num: "49%", label: "max savings found" },
               { num: "4.8x", label: "multi-agent overhead" },

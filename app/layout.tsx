@@ -5,6 +5,12 @@ export const metadata: Metadata = {
   title: "AgentQuote — AI Agent Cost Estimator",
   description:
     "Estimate how much your AI agent system will cost to run. Get cost breakdowns, optimization suggestions, and architecture diagrams.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "32x32" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+  },
 };
 
 export default function RootLayout({

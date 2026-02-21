@@ -13,28 +13,87 @@ interface Recommendation {
 function parseRecommendations(text: string): Recommendation[] {
   if (!text) return [];
 
-  const parts = text.split(/(?=RECOMMENDATION\s+\d+)/i);
+  // Try multiple split strategies to handle different Claude output formats
+
+  // Strategy 1: Split on "RECOMMENDATION N" headers (with colon, bold, or dash)
+  const recHeaderPattern = /(?=RECOMMENDATION\s+\d+\s*[:\-—*])/im;
+  // Strategy 2: Split on numbered items "1. **Title**" or "1. Title"
+  const numberedPattern = /(?=\n\d+\.\s+)/;
+
+  let parts: string[];
+  if (recHeaderPattern.test(text)) {
+    parts = text.split(/(?=RECOMMENDATION\s+\d+\s*[:\-—*])/im);
+  } else if (numberedPattern.test(text)) {
+    parts = text.split(/(?=\n\d+\.\s+)/);
+    // The first part before "1." is preamble — skip it if short
+    if (parts[0] && !/^\s*\d+\.\s+/.test(parts[0].trim())) {
+      parts.shift();
+    }
+  } else {
+    // Strategy 3: Split on bold headers "**Title**" at line start
+    parts = text.split(/(?=\n\*\*[^*]+\*\*)/);
+    if (parts[0] && !parts[0].trim().startsWith("**")) {
+      parts.shift();
+    }
+  }
+
   const recs: Recommendation[] = [];
 
   for (const part of parts) {
     const trimmed = part.trim();
     if (!trimmed) continue;
 
-    const titleMatch = trimmed.match(
-      /RECOMMENDATION\s+\d+[:\s]*\*?\*?(.+?)(?:\*\*)?$/m
-    );
-    const title = titleMatch
-      ? titleMatch[1].replace(/\*\*/g, "").trim()
-      : trimmed.split("\n")[0].replace(/\*\*/g, "").trim();
+    const lines = trimmed.split("\n");
+    if (lines.length < 2) continue;
 
+    // Extract title from first line
+    let title = lines[0]
+      .replace(/^RECOMMENDATION\s+\d+\s*[:\-—*]\s*/i, "")
+      .replace(/^\d+\.\s*/, "")
+      .replace(/\*\*/g, "")
+      .trim();
+
+    // Skip if title looks like a summary table line (contains brackets like [BIGGEST IMPACT])
+    if (/\[.*IMPACT\]/i.test(title)) continue;
+    // Skip if title is just a price range
+    if (/^\$[\d,]+\s*[-–—]\s*\$[\d,]+/.test(title)) continue;
+    // Skip very short titles (likely parsing artifacts)
+    if (title.length < 5) continue;
+
+    // Build body from lines after title, stripping metadata lines
+    const bodyLines = lines.slice(1).filter((line) => {
+      const t = line.trim();
+      // Strip metadata lines that we extract as pills
+      if (/^estimated\s+savings?:/i.test(t)) return false;
+      if (/^quality\s*impact:/i.test(t)) return false;
+      if (/^implementation\s+difficulty:/i.test(t)) return false;
+      return true;
+    });
+    const body = bodyLines.join("\n").trim();
+    // Skip entries with very short bodies
+    if (body.length < 10) continue;
+
+    // Extract metadata from the full text (before stripping)
     const savingsMatch =
       trimmed.match(
-        /(?:save|savings?)[:\s]*\$?([\d,]+(?:\.\d+)?)\s*(?:\/mo|per month|monthly)?/i
+        /(?:estimated\s+)?(?:save|savings?)[:\s]*~?\$?([\d,]+(?:\.\d+)?)\s*(?:\/mo|per month|monthly)?/i
       ) ||
       trimmed.match(
-        /\$([\d,]+(?:\.\d+)?)\s*(?:\/mo|per month|monthly)\s*(?:sav)/i
+        /(?:estimated\s+)?(?:save|savings?)[:\s]*~?(\d+(?:\.\d+)?)\s*%/i
+      ) ||
+      trimmed.match(
+        /\$?([\d,]+(?:\.\d+)?)\s*(?:\/mo|per month|monthly)\s*(?:sav)/i
       );
-    const savings = savingsMatch ? `$${savingsMatch[1]}/mo` : null;
+    let savings: string | null = null;
+    if (savingsMatch) {
+      const val = savingsMatch[1];
+      // If it's a percentage
+      if (trimmed.includes(val + "%") || trimmed.includes(val + " %")) {
+        savings = `${val}%`;
+      } else {
+        savings = `$${val}/mo`;
+      }
+    }
 
     const diffMatch = trimmed.match(
       /(?:implementation\s+)?difficulty[:\s]*(easy|moderate|hard|trivial|complex)/i
@@ -52,9 +111,6 @@ function parseRecommendations(text: string): Recommendation[] {
         qualityMatch[1].slice(1).toLowerCase()
       : null;
 
-    const lines = trimmed.split("\n");
-    const body = lines.slice(1).join("\n").trim();
-
     recs.push({ title, savings, difficulty, quality, body });
   }
 
@@ -64,22 +120,35 @@ function parseRecommendations(text: string): Recommendation[] {
 // ── Split body into tier1 (what to change) and tier2 (full analysis) ──
 
 function splitContent(body: string): { tier1: string; tier2: string } {
+  // Since metadata lines are stripped, show "What to change" as tier1
+  // and everything else as tier2
   const whatToChangeMatch = body.match(
-    /What to change:?\s*([\s\S]*?)(?=Estimated savings|Quality impact|Implementation difficulty|$)/i
+    /What to change:?\s*([\s\S]*)/i
   );
 
-  const tier1 = whatToChangeMatch
-    ? whatToChangeMatch[1].trim()
-    : body
-        .split("\n")
-        .filter((l) => l.trim())
-        .slice(0, 3)
-        .join("\n");
+  if (whatToChangeMatch) {
+    const content = whatToChangeMatch[1].trim();
+    // Split at first blank line or after ~3 lines for tier1/tier2
+    const lines = content.split("\n");
+    const blankIdx = lines.findIndex((l, i) => i > 0 && !l.trim());
+    if (blankIdx > 0 && blankIdx < lines.length - 1) {
+      return {
+        tier1: lines.slice(0, blankIdx).join("\n").trim(),
+        tier2: lines.slice(blankIdx + 1).join("\n").trim(),
+      };
+    }
+    return { tier1: content, tier2: "" };
+  }
 
-  const tier2Match = body.match(/(Estimated savings[\s\S]*)/i);
-  const tier2 = tier2Match ? tier2Match[1].trim() : "";
-
-  return { tier1, tier2 };
+  // Fallback: first 3 lines as tier1, rest as tier2
+  const lines = body.split("\n").filter((l) => l.trim());
+  if (lines.length <= 3) {
+    return { tier1: body, tier2: "" };
+  }
+  return {
+    tier1: lines.slice(0, 3).join("\n"),
+    tier2: lines.slice(3).join("\n"),
+  };
 }
 
 // ── Color helpers ──
@@ -220,13 +289,31 @@ export default function RecommendationCards({ text }: { text: string }) {
   const [expanded, setExpanded] = useState<number | null>(null);
   const [showFullAnalysis, setShowFullAnalysis] = useState<number | null>(null);
 
-  if (recs.length === 0) return null;
-
-  const totalSavings = recs.reduce((sum, r) => {
-    if (!r.savings) return sum;
-    const num = parseFloat(r.savings.replace(/[$,/mo]/g, ""));
-    return isNaN(num) ? sum : sum + num;
-  }, 0);
+  if (recs.length === 0) {
+    // Fallback: if parsing failed, render the raw text in a card
+    if (text.trim()) {
+      return (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <p
+              style={{
+                fontSize: 11,
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                color: "#71717a",
+              }}
+            >
+              Optimizations
+            </p>
+          </div>
+          <div className="bg-[#111113] border border-[#27272a] rounded-[12px] p-4">
+            {renderBody(text)}
+          </div>
+        </div>
+      );
+    }
+    return null;
+  }
 
   return (
     <div>
@@ -242,14 +329,9 @@ export default function RecommendationCards({ text }: { text: string }) {
         >
           Optimizations
         </p>
-        {totalSavings > 0 && (
-          <p
-            className="text-sm text-[#22c55e] font-medium"
-            style={{ fontFamily: "var(--font-mono, monospace)" }}
-          >
-            Save up to ${totalSavings.toLocaleString()}/mo
-          </p>
-        )}
+        <p className="text-xs text-[#52525b]">
+          {recs.length} recommendation{recs.length !== 1 ? "s" : ""}
+        </p>
       </div>
 
       {/* Cards */}

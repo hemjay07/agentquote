@@ -6,6 +6,7 @@ import type {
   CostEstimate,
   OptimizationFlags,
 } from "@/lib/knowledge-base";
+import { MODEL_PRICING } from "@/lib/knowledge-base";
 import FlowDiagram from "./flow-diagram";
 import RecommendationCards from "./recommendation-card";
 import CSVUpload from "./csv-upload";
@@ -54,52 +55,38 @@ function parseRecommendationSections(text: string) {
   return sections;
 }
 
-// ── Try to extract cost driver info ──
+// ── Calculate cost driver from actual data (deterministic, no text parsing) ──
 
-function parseCostDriver(
-  costSummary: string,
+function calculateCostDriver(
   parsed: ParsedSystem
 ): { name: string; pct: number; reason: string } | null {
-  if (!costSummary) return null;
+  if (parsed.agents.length === 0) return null;
 
-  const driverMatch =
-    costSummary.match(
-      /(?:biggest|largest|primary|main)\s*(?:cost\s*)?driver[:\s]*(?:is\s*)?(?:the\s*)?([^,.(]+)/i
-    ) ||
-    costSummary.match(
-      /([^,.(]+?)(?:\s*(?:is|accounts?\s*for|represents?)\s*(?:the\s*)?(?:biggest|largest|primary))/i
-    );
-
-  if (driverMatch) {
-    const nearby = costSummary.slice(
-      Math.max(0, driverMatch.index! - 30),
-      driverMatch.index! + driverMatch[0].length + 60
-    );
-    const pctMatch = nearby.match(/(\d+)%/);
-    if (pctMatch) {
-      return {
-        name: driverMatch[1].trim().replace(/\*\*/g, ""),
-        pct: parseInt(pctMatch[1]),
-        reason: "of total monthly cost",
-      };
-    }
-  }
+  // Score each agent by model cost × tool overhead
+  const scores: { name: string; score: number }[] = [];
+  let total = 0;
 
   for (const agent of parsed.agents) {
-    if (!agent.name) continue;
-    const escaped = agent.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const pattern = new RegExp(`${escaped}[^\\d]*(\\d+)%`, "i");
-    const match = costSummary.match(pattern);
-    if (match) {
-      return {
-        name: agent.name,
-        pct: parseInt(match[1]),
-        reason: "of total monthly cost",
-      };
-    }
+    const pricing = MODEL_PRICING[agent.model];
+    const modelCost = pricing ? pricing.input + pricing.output : 10;
+    const toolOverhead = agent.has_tools ? agent.tool_count * 2 : 0;
+    const score = modelCost + toolOverhead;
+    scores.push({ name: agent.name || "Agent", score });
+    total += score;
   }
 
-  return null;
+  if (total === 0) return null;
+
+  // Find the most expensive agent
+  scores.sort((a, b) => b.score - a.score);
+  const top = scores[0];
+  const pct = Math.round((top.score / total) * 100);
+
+  return {
+    name: top.name,
+    pct,
+    reason: "of total monthly cost",
+  };
 }
 
 // ── Parse warnings into individual items ──
@@ -109,65 +96,81 @@ function parseWarnings(
 ): { title: string; summary: string; details: string }[] {
   if (!text) return [];
 
-  // Try splitting by numbered items (1., 2., etc.)
-  const numberedParts = text.split(/\n(?=\d+\.\s+)/);
-  if (numberedParts.filter((p) => p.trim()).length > 1) {
-    return numberedParts
-      .filter((p) => p.trim())
-      .map((part) => {
-        const lines = part.trim().split("\n");
-        const title = lines[0]
-          .replace(/^\d+\.\s*/, "")
-          .replace(/\*\*/g, "")
-          .trim();
-        const rest = lines.slice(1);
-        const summary =
-          rest
-            .find((l) => l.trim() && !/^-{3,}$/.test(l.trim()))
-            ?.replace(/^-\s*/, "")
-            .trim()
-            .slice(0, 120) || "";
-        const details = rest.join("\n").trim();
-        return { title, summary, details };
-      });
+  // Strip leading/trailing whitespace
+  const cleaned = text.trim();
+
+  // Try multiple split strategies
+  let parts: string[] = [];
+
+  // Strategy 1: Split on numbered items (1. ..., 2. ...) — most reliable
+  if (/^\d+\.\s+/m.test(cleaned)) {
+    parts = cleaned.split(/(?=^|\n)\s*(?=\d+\.\s+)/m).filter((p) => p.trim());
+    // Remove preamble before first numbered item
+    if (parts.length > 0 && !/^\s*\d+\.\s+/.test(parts[0])) {
+      parts.shift();
+    }
   }
 
-  // Try splitting by bold headers (**HEADER**)
-  const boldParts = text.split(/\n(?=\*\*[^*]+\*\*)/);
-  if (boldParts.filter((p) => p.trim()).length > 1) {
-    return boldParts
-      .filter((p) => p.trim())
-      .map((part) => {
-        const lines = part.trim().split("\n");
-        const title = lines[0].replace(/\*\*/g, "").trim();
-        const rest = lines.slice(1);
-        const summary =
-          rest
-            .find((l) => l.trim())
-            ?.replace(/^-\s*/, "")
-            .trim()
-            .slice(0, 120) || "";
-        const details = rest.join("\n").trim();
-        return { title, summary, details };
-      });
+  // Strategy 2: Split on emoji-prefixed lines (🚨, ⚠️, etc.)
+  if (parts.length <= 1) {
+    const emojiSplit = cleaned.split(/\n(?=[🚨⚠🔴❗❌🔥])/);
+    if (emojiSplit.filter((p) => p.trim()).length > 1) {
+      parts = emojiSplit.filter((p) => p.trim());
+    }
+  }
+
+  // Strategy 3: Split on bold headers (**HEADER**)
+  if (parts.length <= 1) {
+    const boldSplit = cleaned.split(/\n(?=\*\*[^*]+\*\*)/);
+    if (boldSplit.filter((p) => p.trim()).length > 1) {
+      parts = boldSplit.filter((p) => p.trim());
+    }
+  }
+
+  // Strategy 4: Split on ALL-CAPS lines that look like headers
+  if (parts.length <= 1) {
+    const capsSplit = cleaned.split(/\n(?=[A-Z][A-Z\s:]{5,})/);
+    if (capsSplit.filter((p) => p.trim()).length > 1) {
+      parts = capsSplit.filter((p) => p.trim());
+    }
   }
 
   // Fallback: whole text as one warning
-  const lines = text.trim().split("\n");
-  return [
-    {
-      title: lines[0]
-        .replace(/\*\*/g, "")
+  if (parts.length === 0) {
+    parts = [cleaned];
+  }
+
+  return parts
+    .filter((p) => p.trim())
+    .map((part) => {
+      const lines = part.trim().split("\n");
+
+      // Clean up the title line: strip number prefix, bold markers, emojis
+      const title = lines[0]
         .replace(/^\d+\.\s*/, "")
-        .trim(),
-      summary:
-        lines[1]
-          ?.replace(/^-\s*/, "")
-          .trim()
-          .slice(0, 120) || "",
-      details: lines.slice(1).join("\n").trim(),
-    },
-  ];
+        .replace(/\*\*/g, "")
+        .replace(/[🚨⚠️🔴❗❌🔥]\s*/g, "")
+        .trim();
+
+      // Find the first substantive line after title for summary
+      const rest = lines.slice(1);
+      const summaryLine = rest.find(
+        (l) =>
+          l.trim() &&
+          !/^-{3,}$/.test(l.trim()) &&
+          !/^_{3,}$/.test(l.trim())
+      );
+      const summary = summaryLine
+        ? summaryLine
+            .replace(/^[-•]\s*/, "")
+            .replace(/\*\*/g, "")
+            .trim()
+            .slice(0, 150)
+        : "";
+
+      const details = rest.join("\n").trim();
+      return { title, summary, details };
+    });
 }
 
 // ── Render markdown table ──
@@ -243,7 +246,10 @@ function renderMarkdownTable(
 // ── Render markdown-ish text with table support ──
 
 function renderFormattedText(text: string) {
-  const lines = text.split("\n");
+  // Strip emojis that Claude sometimes adds
+  const cleaned = text.replace(/[💰📊📈📉🚨⚠️🔴❗❌🔥✅🟢🟡]/g, "");
+
+  const lines = cleaned.split("\n");
 
   // Split into blocks: table blocks vs text blocks
   const blocks: { type: "text" | "table"; lines: string[] }[] = [];
@@ -281,9 +287,33 @@ function renderFormattedText(text: string) {
           elements.push(<div key={key} className="h-2" />);
           return;
         }
-        if (/^-{3,}$|^_{3,}$/.test(trimmed)) {
+        if (/^-{3,}$|^_{3,}$|^[=]{3,}$/.test(trimmed)) {
           elements.push(
             <hr key={key} className="border-[#27272a] my-3" />
+          );
+          return;
+        }
+        // Bold headers on their own line
+        if (/^\*\*[^*]+\*\*$/.test(trimmed)) {
+          elements.push(
+            <p
+              key={key}
+              className="text-sm font-semibold text-[#e4e4e7] mt-3 mb-1"
+            >
+              {trimmed.replace(/\*\*/g, "")}
+            </p>
+          );
+          return;
+        }
+        // ALL-CAPS headers (like "BIGGEST COST DRIVER:")
+        if (/^[A-Z][A-Z\s:]{5,}/.test(trimmed) && !trimmed.includes("$")) {
+          elements.push(
+            <p
+              key={key}
+              className="text-xs uppercase tracking-wide text-[#a1a1aa] mt-3 mb-1 font-semibold"
+            >
+              {trimmed}
+            </p>
           );
           return;
         }
@@ -355,7 +385,7 @@ export default function ResultsDashboard({
   const csvRef = useRef<HTMLDivElement>(null);
 
   const sections = parseRecommendationSections(recommendations);
-  const costDriver = parseCostDriver(sections.costSummary, parsed);
+  const costDriver = calculateCostDriver(parsed);
   const warningItems = parseWarnings(sections.warnings);
 
   const low = costs.low.monthly_cost;

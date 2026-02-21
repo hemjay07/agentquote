@@ -112,8 +112,14 @@ export function calculateCosts(
 
     let totalOutputTokens = turns * AVG_ASSISTANT_TOKENS;
 
-    // Tool definitions sent with every call to tool-using agents
-    totalInputTokens += toolDefTokens * totalCalls;
+    // Tool definitions sent with calls to tool-using agents (not ALL calls)
+    // Only agents with tools receive tool definitions, not the router/coordinator
+    const toolAgentCalls = agents.reduce((sum, agent) => {
+      if (!agent.has_tools) return sum;
+      const usesMap = { low: agent.tool_count * 1, mid: agent.tool_count * 2, high: agent.tool_count * 4 };
+      return sum + usesMap[scenario] * API_CALLS_PER_TOOL_USE;
+    }, 0);
+    totalInputTokens += toolDefTokens * Math.max(toolAgentCalls, 1);
 
     // Tool results injected into context after each use
     totalInputTokens += toolCallsPerConvo * AVG_TOOL_RESULT_TOKENS;
@@ -133,8 +139,11 @@ export function calculateCosts(
     }
 
     const expectedFailures = toolCallsPerConvo * failureRate;
+    // Cap failure overhead at 100% of input tokens (prevents runaway in high scenarios)
+    const rawFailureMultiplier = expectedFailures * CONTEXT_GROWTH_PER_FAILURE;
+    const cappedFailureMultiplier = Math.min(rawFailureMultiplier, 1.0);
     const failureTokenOverhead = Math.round(
-      totalInputTokens * expectedFailures * CONTEXT_GROWTH_PER_FAILURE
+      totalInputTokens * cappedFailureMultiplier
     );
     totalInputTokens += failureTokenOverhead;
 

@@ -347,7 +347,7 @@ export default function FlowDiagram({ parsed }: { parsed: ParsedSystem }) {
           onClick={() => setExpanded(false)}
         >
           <div
-            className="max-w-[90vw] max-h-[90vh] bg-[#111113] border border-[#27272a] rounded-[16px] p-6 overflow-auto"
+            className="w-[90vw] max-h-[90vh] bg-[#111113] border border-[#27272a] rounded-[16px] p-6 overflow-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {diagram}

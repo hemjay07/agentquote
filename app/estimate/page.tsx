@@ -39,22 +39,13 @@ export default function EstimatePage() {
   const [nonLLMServices, setNonLLMServices] = useState<NonLLMService[]>([]);
   const [usageRefresh, setUsageRefresh] = useState(0);
 
-  // Progress bar refs for scroll-into-view
-  const parseProgressRef = useRef<HTMLDivElement>(null);
+  // Progress bar ref for scroll-into-view
   const calcProgressRef = useRef<HTMLDivElement>(null);
 
   // ── Step 1 → 2: Parse description, move to review ──
   async function handleDescriptionSubmit(description: string) {
     setLoading(true);
     setError(null);
-
-    // Scroll to progress bar
-    setTimeout(() => {
-      parseProgressRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }, 50);
 
     try {
       const parseRes = await fetch("/api/parse", {
@@ -250,19 +241,6 @@ export default function EstimatePage() {
               Tell us about your agent architecture and we&apos;ll estimate the
               cost.
             </p>
-
-            {/* Parse progress bar — shown above input */}
-            <div ref={parseProgressRef}>
-              {step === "input" && loading && (
-                <div className="mb-6">
-                  <ProgressBar
-                    isLoading={loading}
-                    expectedDuration={3000}
-                    label="Parsing your description..."
-                  />
-                </div>
-              )}
-            </div>
 
             {/* Tab switcher */}
             <div className="flex gap-1 mb-6 border-b border-[var(--border)]">

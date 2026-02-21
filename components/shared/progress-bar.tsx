@@ -14,13 +14,13 @@ export default function ProgressBar({
   label = "Analyzing your system...",
 }: ProgressBarProps) {
   const [progress, setProgress] = useState(0);
-  const [phase, setPhase] = useState<"idle" | "loading" | "completing">("idle");
+  const [visible, setVisible] = useState(false);
   const startTimeRef = useRef<number>(0);
   const frameRef = useRef<number>(0);
 
   useEffect(() => {
-    if (isLoading && phase === "idle") {
-      setPhase("loading");
+    if (isLoading) {
+      setVisible(true);
       setProgress(0);
       startTimeRef.current = Date.now();
 
@@ -31,24 +31,20 @@ export default function ProgressBar({
         frameRef.current = requestAnimationFrame(animate);
       };
       frameRef.current = requestAnimationFrame(animate);
-    }
 
-    if (!isLoading && phase === "loading") {
+      return () => cancelAnimationFrame(frameRef.current);
+    } else if (visible) {
       cancelAnimationFrame(frameRef.current);
-      setPhase("completing");
       setProgress(100);
-      setTimeout(() => {
-        setPhase("idle");
+      const timeout = setTimeout(() => {
+        setVisible(false);
         setProgress(0);
       }, 500);
+      return () => clearTimeout(timeout);
     }
+  }, [isLoading, expectedDuration]);
 
-    return () => {
-      if (frameRef.current) cancelAnimationFrame(frameRef.current);
-    };
-  }, [isLoading, phase, expectedDuration]);
-
-  if (phase === "idle") return null;
+  if (!visible) return null;
 
   return (
     <div className="w-full">
@@ -66,7 +62,7 @@ export default function ProgressBar({
       </div>
       <div className="w-full h-1.5 bg-[var(--border)] rounded-full overflow-hidden">
         <div
-          className="h-full rounded-full transition-all duration-300 ease-out"
+          className="h-full rounded-full"
           style={{
             width: `${progress}%`,
             background: "var(--accent)",

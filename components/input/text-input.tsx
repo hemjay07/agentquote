@@ -37,7 +37,7 @@ export default function TextInput({ onSubmit, disabled }: TextInputProps) {
           disabled={disabled || !description.trim()}
           className="bg-[var(--accent)] text-black font-semibold px-6 py-2 rounded-xl hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
         >
-          Analyze →
+          {disabled ? "Analyzing..." : "Analyze →"}
         </button>
       </div>
     </div>

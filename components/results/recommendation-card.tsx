@@ -368,7 +368,7 @@ export default function RecommendationCards({ text, costs }: { text: string; cos
               <div className="flex flex-wrap items-center gap-2 mb-1.5">
                 {rec.savings && (
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#22c55e]/10 border border-[#22c55e]/20 text-[#22c55e]">
-                    {rec.savings}
+                    {rec.savings} <span className="text-[#71717a]">&middot; Normal</span>
                   </span>
                 )}
                 {rec.difficulty &&

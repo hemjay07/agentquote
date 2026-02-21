@@ -506,12 +506,12 @@ export default function ResultsDashboard({
             </button>
           ))}
         </div>
-        <p className="text-center text-[11px] text-[#52525b] mt-2">
+        <p className="text-center text-[11px] text-[#71717a] mt-2">
           {activeScenario === "low"
-            ? "Tools fire once, low failure rate"
+            ? "Optimistic \u2014 tools work first try, minimal retries"
             : activeScenario === "mid"
-              ? "Tools fire 2x, moderate failures"
-              : "Tools fire 4x, high failure rate"}
+              ? "Typical \u2014 some retries, moderate tool usage"
+              : "Stress test \u2014 heavy tool usage, frequent retries"}
         </p>
 
         {!optimizations.caching_enabled && activeCosts.caching_savings_monthly > 0 && (

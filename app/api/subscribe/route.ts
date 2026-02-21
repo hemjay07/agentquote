@@ -1,28 +1,14 @@
 /**
  * POST /api/subscribe
  * Saves email + estimate data for the feedback loop.
- * In v1: writes to a local JSON file. In production: Vercel KV or database.
+ * Storage: Upstash Redis list "subscribers"
  */
 
 import { NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
+import { Redis } from "@upstash/redis";
 
-const DATA_FILE = path.join(process.cwd(), "data", "subscribers.json");
-
-async function ensureDataDir() {
-  const dir = path.dirname(DATA_FILE);
-  await fs.mkdir(dir, { recursive: true });
-}
-
-async function readSubscribers(): Promise<any[]> {
-  try {
-    const data = await fs.readFile(DATA_FILE, "utf-8");
-    return JSON.parse(data);
-  } catch {
-    return [];
-  }
-}
+const redis = Redis.fromEnv();
+const SUBSCRIBERS_KEY = "subscribers";
 
 export async function POST(request: Request) {
   try {
@@ -43,17 +29,14 @@ export async function POST(request: Request) {
       );
     }
 
-    await ensureDataDir();
-    const subscribers = await readSubscribers();
-
-    subscribers.push({
+    const record = {
       email,
       estimate: estimate || null,
       reminder_date: reminder_date || null,
       created_at: new Date().toISOString(),
-    });
+    };
 
-    await fs.writeFile(DATA_FILE, JSON.stringify(subscribers, null, 2));
+    await redis.rpush(SUBSCRIBERS_KEY, JSON.stringify(record));
 
     return NextResponse.json({ success: true });
   } catch (error) {

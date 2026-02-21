@@ -148,8 +148,8 @@ function validateAndNormalize(parsed: ParsedSystem): ParsedSystem {
       agent.has_tools = true;
     }
     if (agent.has_tools && agent.tool_count === 0) {
-      // has_tools is true but tool_count is 0 — likely an error
-      agent.has_tools = false;
+      // has_tools is true but tool_count is 0 — assume at least one tool exists
+      agent.tool_count = 1;
     }
   }
 

@@ -48,8 +48,8 @@ export function calculateCosts(
 ): CostEstimate {
   const { agents, pattern, memory_strategy, avg_turns_per_conversation: turns, daily_conversations: dailyVolume } = parsed;
 
-  const profile = PATTERN_PROFILES[pattern];
-  const mem = MEMORY_MULTIPLIERS[memory_strategy];
+  const profile = PATTERN_PROFILES[pattern] || PATTERN_PROFILES["react_agent"];
+  const mem = MEMORY_MULTIPLIERS[memory_strategy] || MEMORY_MULTIPLIERS["buffer"];
 
   // Merge custom models with built-in pricing
   const allPricing = { ...MODEL_PRICING };
@@ -117,9 +117,10 @@ export function calculateCosts(
     // Tool results injected into context after each use
     totalInputTokens += toolCallsPerConvo * AVG_TOOL_RESULT_TOKENS;
 
-    // Step 5: Context duplication for multi-agent systems
+    // Step 5: Context duplication for multi-agent orchestrator-worker systems
     // Day 4: each additional agent multiplies input by ~1.2x
-    if (agents.length > 1) {
+    // Only applies to multi_agent pattern where agents share full context
+    if (pattern === "multi_agent" && agents.length > 1) {
       const duplication = Math.pow(CONTEXT_DUPLICATION_PER_AGENT, agents.length - 1);
       totalInputTokens = Math.round(totalInputTokens * duplication);
     }
@@ -166,7 +167,7 @@ export function calculateCosts(
         pricing.input *
         (1 - CACHE_READ_DISCOUNT) *
         (totalCalls - 1);
-      inputCost -= cachingSavingsPerConvo;
+      inputCost = Math.max(0, inputCost - cachingSavingsPerConvo);
     } else if (cachingApplicable) {
       // Not caching yet: show potential savings
       cachingSavingsPerConvo =

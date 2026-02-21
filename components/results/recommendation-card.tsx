@@ -289,6 +289,12 @@ export default function RecommendationCards({ text }: { text: string }) {
   const [expanded, setExpanded] = useState<number | null>(null);
   const [showFullAnalysis, setShowFullAnalysis] = useState<number | null>(null);
 
+  const totalSavings = recs.reduce((sum, r) => {
+    if (!r.savings) return sum;
+    const num = parseFloat(r.savings.replace(/[$,\/mo]/g, ""));
+    return isNaN(num) ? sum : sum + num;
+  }, 0);
+
   if (recs.length === 0) {
     // Fallback: if parsing failed, render the raw text in a card
     if (text.trim()) {
@@ -329,8 +335,14 @@ export default function RecommendationCards({ text }: { text: string }) {
         >
           Optimizations
         </p>
-        <p className="text-xs text-[#52525b]">
-          {recs.length} recommendation{recs.length !== 1 ? "s" : ""}
+        <p className="text-sm font-medium">
+          {totalSavings > 0 && totalSavings <= 50000 ? (
+            <span className="text-green-400">
+              Save up to <span style={{ fontFamily: "var(--font-mono, monospace)" }}>${totalSavings.toLocaleString()}/mo</span>
+            </span>
+          ) : (
+            <span className="text-[#a1a1aa]">{recs.length} optimization{recs.length !== 1 ? "s" : ""} found</span>
+          )}
         </p>
       </div>
 

@@ -111,7 +111,9 @@ export function analyzeCSV(
   if (estimate) {
     const actualMonthly = dailyAverage * 30;
     const estimateMonthly = estimate.mid.monthly_cost;
-    const diffPct = ((estimateMonthly - actualMonthly) / actualMonthly) * 100;
+    const diffPct = actualMonthly > 0
+      ? ((estimateMonthly - actualMonthly) / actualMonthly) * 100
+      : 0;
 
     let verdict: string;
     if (Math.abs(diffPct) < 15) {

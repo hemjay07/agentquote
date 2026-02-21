@@ -35,6 +35,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if (feedback_text.length > 5000) {
+      return NextResponse.json(
+        { error: "Feedback too long (max 5,000 characters)" },
+        { status: 400 }
+      );
+    }
+
     await ensureDataDir();
     const feedback = await readFeedback();
 

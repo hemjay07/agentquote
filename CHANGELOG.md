@@ -4,6 +4,75 @@ All notable fixes and improvements to AgentQuote, documented in reverse chronolo
 
 ---
 
+## 2026-02-21 — Targeted Fix Round (11 fixes)
+
+### Calculator (4 fixes)
+
+**Fix 1 (CRITICAL): Context duplication scoped to multi_agent pattern** (`lib/calculator.ts`)
+- Changed `if (agents.length > 1)` to `if (pattern === "multi_agent" && agents.length > 1)`.
+- Day 4 experiment measured 1.2x duplication per extra agent specifically in orchestrator-worker systems. Pipeline patterns hand off sequentially — different duplication characteristics. A react_agent with multiple agents listed shouldn't get exponential duplication.
+
+**Fix 2 (CRITICAL): Caching savings can no longer make inputCost negative** (`lib/calculator.ts`)
+- Added `Math.max(0, inputCost - cachingSavingsPerConvo)` floor.
+- Without this, large system prompts with many tool definitions and high call counts could produce negative input costs — resulting in impossible "your system makes money" estimates.
+
+**Fix 3 (CRITICAL): Unknown pattern/memory keys no longer crash** (`lib/calculator.ts`)
+- Added fallbacks: `PATTERN_PROFILES[pattern] || PATTERN_PROFILES["react_agent"]` and `MEMORY_MULTIPLIERS[memory_strategy] || MEMORY_MULTIPLIERS["buffer"]`.
+- Claude's parser can return unexpected strings despite prompt constraints. Without fallbacks, accessing `.base_calls_low` on `undefined` throws a runtime crash.
+
+**Fix 4 (CRITICAL): CSV analyzer division by zero guard** (`lib/csv-analyzer.ts`)
+- Changed `diffPct = (estimate - actual) / actual * 100` to check `actualMonthly > 0` first.
+- CSV with all-zero costs (test data, empty period) produced NaN/Infinity that cascaded to "NaN%" in the UI.
+
+### API Routes (4 fixes)
+
+**Fix 5 (CRITICAL): API request timeouts** (`app/estimate/page.tsx`)
+- Parse fetch: 30-second AbortController timeout.
+- Calculate + recommend fetches: shared 45-second timeout.
+- Abort errors show user-friendly "Request timed out. Please try again."
+- Previously, a hung Claude API call left users staring at a spinner forever.
+
+**Fix 6 (MEDIUM): Email validation** (`app/api/subscribe/route.ts`)
+- Added regex validation `/^[^\s@]+@[^\s@]+\.[^\s@]+$/` after the existing string check.
+- Previously accepted any string as an email.
+
+**Fix 7 (MEDIUM): Payload size limits** (`app/api/parse/route.ts`, `app/api/feedback/route.ts`, `app/api/analyze-csv/route.ts`)
+- Parse: max 10,000 characters.
+- Feedback: max 5,000 characters.
+- CSV: max 500KB.
+- Prevents DoS via oversized payloads.
+
+**Fix 8 (MEDIUM): Non-LLM service negative values** (`components/review/assumption-review.tsx`)
+- Added `min={0}` to unit_price and daily_volume inputs.
+- Added `Math.max(0, ...)` clamping in updateService handler.
+- Previously accepted negative prices/volumes → nonsensical cost calculations.
+
+### UI Components (3 fixes)
+
+**Fix 9 (CRITICAL): Array index as React key → stable keys** (`components/input/guided-form.tsx`, `components/review/assumption-review.tsx`)
+- Guided form: added `_id: number` field with `useRef` counter. Keys use `agent._id` instead of array index. IDs stripped before submitting ParsedSystem.
+- Assumption review: composite key `${agent.name}-${agent.model}-${i}` instead of bare index.
+- Previously, removing Agent 1 from a list of [Agent 1, Agent 2] caused React to reuse DOM nodes with stale state.
+
+**Fix 11 (MEDIUM): Savings total restored with $50K sanity cap** (`components/results/recommendation-card.tsx`)
+- Re-added `totalSavings` calculation from parsed recommendation savings.
+- Shows "Save up to $X/mo" only if total is > 0 and <= $50,000.
+- Falls back to "N optimizations found" for unreasonable totals.
+- Previously removed entirely after showing "$66K savings on $18K cost" — now capped instead.
+
+**Fix 13 (LOW): Cost driver scoring accounts for API calls** (`components/results/results-dashboard.tsx`)
+- Old formula: `modelCost + toolCount * 2` — didn't account for how many API calls each agent makes.
+- New formula: `modelCost * estimatedCalls + toolDefOverhead * pricing * estimatedCalls` — weights by actual call volume.
+- Imported `API_CALLS_PER_TOOL_USE` and `TOOL_DEF_OVERHEAD_TOKENS` from knowledge-base.
+- Cost driver `reason` field now shows model label + tool count for context.
+
+### Skipped
+
+- **Fix 10 (pipe table rendering)**: User confirmed tables look fine as-is.
+- **Fix 12 (Python calculator.py)**: No Python file exists in the project.
+
+---
+
 ## 2026-02-21 — Guardrail-Aware Failure Overhead
 
 **Calculator: failure cap now depends on guardrails** (`lib/calculator.ts`)

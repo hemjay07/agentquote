@@ -47,12 +47,17 @@ export default function EstimatePage() {
     setLoading(true);
     setError(null);
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
     try {
       const parseRes = await fetch("/api/parse", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ description }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
 
       if (!parseRes.ok) {
         const err = await parseRes.json();
@@ -67,9 +72,13 @@ export default function EstimatePage() {
 
       setStep("review");
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "An error occurred";
-      setError(message);
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setError("Request timed out. Please try again.");
+      } else {
+        const message =
+          err instanceof Error ? err.message : "An error occurred";
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -101,6 +110,9 @@ export default function EstimatePage() {
       });
     }, 50);
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 45000);
+
     try {
       const calcRes = await fetch("/api/calculate", {
         method: "POST",
@@ -110,6 +122,7 @@ export default function EstimatePage() {
           optimizations: opts,
           nonLLMServices: services,
         }),
+        signal: controller.signal,
       });
 
       if (!calcRes.ok) throw new Error("Calculation failed");
@@ -120,7 +133,9 @@ export default function EstimatePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ parsed: updatedParsed, costs: costData }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
 
       if (!recRes.ok) throw new Error("Recommendations failed");
       const { recommendations: recData } = await recRes.json();
@@ -131,9 +146,13 @@ export default function EstimatePage() {
 
       setStep("results");
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "An error occurred";
-      setError(message);
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setError("Request timed out. Please try again.");
+      } else {
+        const message =
+          err instanceof Error ? err.message : "An error occurred";
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }

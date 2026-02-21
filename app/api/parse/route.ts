@@ -18,6 +18,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if (description.length > 10000) {
+      return NextResponse.json(
+        { error: "Description too long (max 10,000 characters)" },
+        { status: 400 }
+      );
+    }
+
     const parsed = await parseDescription(description);
 
     if (!parsed) {

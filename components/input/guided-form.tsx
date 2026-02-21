@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   MODEL_PRICING,
   PATTERN_PROFILES,
@@ -25,7 +25,10 @@ const EMPTY_AGENT: ParsedAgent = {
 
 export default function GuidedForm({ onSubmit, disabled }: GuidedFormProps) {
   const [systemName, setSystemName] = useState("");
-  const [agents, setAgents] = useState<ParsedAgent[]>([{ ...EMPTY_AGENT }]);
+  const agentIdCounter = useRef(1);
+  const [agents, setAgents] = useState<(ParsedAgent & { _id: number })[]>([
+    { ...EMPTY_AGENT, _id: 0 },
+  ]);
   const [pattern, setPattern] = useState("react_agent");
   const [memory, setMemory] = useState("buffer");
   const [turns, setTurns] = useState(5);
@@ -49,7 +52,7 @@ export default function GuidedForm({ onSubmit, disabled }: GuidedFormProps) {
   }
 
   function addAgent() {
-    setAgents([...agents, { ...EMPTY_AGENT }]);
+    setAgents([...agents, { ...EMPTY_AGENT, _id: agentIdCounter.current++ }]);
   }
 
   function removeAgent(index: number) {
@@ -60,7 +63,7 @@ export default function GuidedForm({ onSubmit, disabled }: GuidedFormProps) {
   function handleSubmit() {
     const data: ParsedSystem = {
       system_name: systemName || "Custom System",
-      agents,
+      agents: agents.map(({ _id, ...rest }) => rest),
       pattern,
       memory_strategy: memory,
       avg_turns_per_conversation: turns,
@@ -108,7 +111,7 @@ export default function GuidedForm({ onSubmit, disabled }: GuidedFormProps) {
         <div className="space-y-3">
           {agents.map((agent, i) => (
             <div
-              key={i}
+              key={agent._id}
               className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-4 space-y-3"
             >
               <div className="flex items-center justify-between">

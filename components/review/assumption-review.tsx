@@ -56,6 +56,9 @@ export default function AssumptionReview({
 
   function updateService(index: number, field: string, value: any) {
     const updated = [...services];
+    if (field === "unit_price" || field === "daily_volume") {
+      value = Math.max(0, Number(value) || 0);
+    }
     (updated[index] as any)[field] = value;
     setServices(updated);
   }
@@ -186,7 +189,7 @@ export default function AssumptionReview({
             <tbody>
               {parsed.agents.map((agent, i) => (
                 <AgentRow
-                  key={i}
+                  key={`${agent.name}-${agent.model}-${i}`}
                   agent={agent}
                   index={i}
                   isEditing={editingAgent === i}
@@ -269,6 +272,7 @@ export default function AssumptionReview({
                 <input
                   type="number"
                   step="0.001"
+                  min={0}
                   value={svc.unit_price || ""}
                   onChange={(e) => updateService(i, "unit_price", parseFloat(e.target.value) || 0)}
                   placeholder="$/unit"
@@ -283,6 +287,7 @@ export default function AssumptionReview({
                 />
                 <input
                   type="number"
+                  min={0}
                   value={svc.daily_volume || ""}
                   onChange={(e) => updateService(i, "daily_volume", parseInt(e.target.value) || 0)}
                   placeholder="daily volume"

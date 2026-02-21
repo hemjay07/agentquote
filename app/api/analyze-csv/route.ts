@@ -20,6 +20,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if (csv.length > 500000) {
+      return NextResponse.json(
+        { error: "CSV too large (max 500KB)" },
+        { status: 400 }
+      );
+    }
+
     const analysis = analyzeCSV(csv, estimate);
 
     return NextResponse.json({ analysis });

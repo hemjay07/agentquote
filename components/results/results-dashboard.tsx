@@ -6,7 +6,7 @@ import type {
   CostEstimate,
   OptimizationFlags,
 } from "@/lib/knowledge-base";
-import { MODEL_PRICING } from "@/lib/knowledge-base";
+import { MODEL_PRICING, API_CALLS_PER_TOOL_USE, TOOL_DEF_OVERHEAD_TOKENS } from "@/lib/knowledge-base";
 import FlowDiagram from "./flow-diagram";
 import RecommendationCards from "./recommendation-card";
 import CSVUpload from "./csv-upload";
@@ -62,22 +62,29 @@ function calculateCostDriver(
 ): { name: string; pct: number; reason: string } | null {
   if (parsed.agents.length === 0) return null;
 
-  // Score each agent by model cost × tool overhead
-  const scores: { name: string; score: number }[] = [];
+  const scores: { name: string; score: number; reason: string }[] = [];
   let total = 0;
 
   for (const agent of parsed.agents) {
     const pricing = MODEL_PRICING[agent.model];
-    const modelCost = pricing ? pricing.input + pricing.output : 10;
-    const toolOverhead = agent.has_tools ? agent.tool_count * 2 : 0;
-    const score = modelCost + toolOverhead;
-    scores.push({ name: agent.name || "Agent", score });
+    if (!pricing) continue;
+
+    const modelCost = pricing.input + pricing.output;
+    const toolCalls = agent.has_tools ? agent.tool_count * 2 * API_CALLS_PER_TOOL_USE : 0;
+    const toolDefOverhead = agent.has_tools ? agent.tool_count * TOOL_DEF_OVERHEAD_TOKENS : 0;
+    const estimatedCalls = 1 + toolCalls;
+    const score = modelCost * estimatedCalls + (toolDefOverhead * pricing.input / 1_000_000) * estimatedCalls;
+
+    const reason = agent.has_tools
+      ? `${pricing.label || agent.model} with ${agent.tool_count} tools`
+      : pricing.label || agent.model;
+
+    scores.push({ name: agent.name || "Agent", score, reason });
     total += score;
   }
 
   if (total === 0) return null;
 
-  // Find the most expensive agent
   scores.sort((a, b) => b.score - a.score);
   const top = scores[0];
   const pct = Math.round((top.score / total) * 100);
@@ -85,7 +92,7 @@ function calculateCostDriver(
   return {
     name: top.name,
     pct,
-    reason: "of total monthly cost",
+    reason: top.reason,
   };
 }
 

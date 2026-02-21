@@ -33,7 +33,7 @@ export default function EmailCapture({ estimate }: EmailCaptureProps) {
       });
       setSubmitted(true);
     } catch {
-      // Silently fail — don't block the user
+      // Don't block the user, but they'll see the form again to retry
     } finally {
       setLoading(false);
     }

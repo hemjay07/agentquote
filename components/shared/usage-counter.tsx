@@ -16,7 +16,13 @@ export default function UsageCounter({ refreshKey = 0 }: { refreshKey?: number }
       .catch(() => {});
   }, [refreshKey]);
 
-  if (remaining === null) return null;
+  if (remaining === null) {
+    return (
+      <span className="text-xs border rounded px-2 py-1 text-[var(--text-secondary)] border-[var(--border)] animate-pulse">
+        Loading...
+      </span>
+    );
+  }
 
   const pct = Math.round((remaining / total) * 100);
   const color =

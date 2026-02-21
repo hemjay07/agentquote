@@ -319,7 +319,7 @@ export default function GuidedForm({ onSubmit, disabled }: GuidedFormProps) {
       {/* Submit */}
       <button
         onClick={handleSubmit}
-        disabled={disabled || agents.every((a) => !a.name)}
+        disabled={disabled || agents.some((a) => !a.name)}
         className="w-full bg-[var(--accent)] text-black font-semibold px-6 py-3 rounded-xl hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
       >
         Review Assumptions →

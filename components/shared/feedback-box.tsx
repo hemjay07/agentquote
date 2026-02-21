@@ -19,7 +19,7 @@ export default function FeedbackBox() {
       });
       setSubmitted(true);
     } catch {
-      // Silently fail
+      // Don't block the user, but they'll see the form again to retry
     } finally {
       setLoading(false);
     }

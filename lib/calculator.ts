@@ -68,7 +68,7 @@ export function calculateCosts(
 
     // Step 2: Tool overhead (Day 2: 1 tool use = 2 API calls)
     let toolCallsPerConvo = 0;
-    let toolDefTokens = 0;
+    let toolDefTokensPerConvo = 0;
 
     for (const agent of agents) {
       if (!agent.has_tools) continue;
@@ -79,16 +79,15 @@ export function calculateCosts(
         high: agent.tool_count * 4,
       };
       const uses = usesMap[scenario];
-      toolCallsPerConvo += uses * API_CALLS_PER_TOOL_USE;
+      const agentCalls = uses * API_CALLS_PER_TOOL_USE;
+      toolCallsPerConvo += agentCalls;
 
-      // Optimization: tool-specific routing means only relevant tools sent
-      // Without it, ALL tool definitions go on every call
-      if (optimizations?.tool_specific_routing) {
-        // Only 1 tool definition sent per call instead of all
-        toolDefTokens += TOOL_DEF_OVERHEAD_TOKENS;
-      } else {
-        toolDefTokens += agent.tool_count * TOOL_DEF_OVERHEAD_TOKENS;
-      }
+      // Each API call to this agent includes its tool definitions
+      // Optimization: tool-specific routing sends only 1 tool def per call
+      const defsPerCall = optimizations?.tool_specific_routing
+        ? TOOL_DEF_OVERHEAD_TOKENS
+        : agent.tool_count * TOOL_DEF_OVERHEAD_TOKENS;
+      toolDefTokensPerConvo += defsPerCall * agentCalls;
     }
 
     let totalCalls = baseCalls + toolCallsPerConvo;
@@ -112,14 +111,8 @@ export function calculateCosts(
 
     let totalOutputTokens = turns * AVG_ASSISTANT_TOKENS;
 
-    // Tool definitions sent with calls to tool-using agents (not ALL calls)
-    // Only agents with tools receive tool definitions, not the router/coordinator
-    const toolAgentCalls = agents.reduce((sum, agent) => {
-      if (!agent.has_tools) return sum;
-      const usesMap = { low: agent.tool_count * 1, mid: agent.tool_count * 2, high: agent.tool_count * 4 };
-      return sum + usesMap[scenario] * API_CALLS_PER_TOOL_USE;
-    }, 0);
-    totalInputTokens += toolDefTokens * Math.max(toolAgentCalls, 1);
+    // Tool definitions already calculated per-agent × per-call above
+    totalInputTokens += toolDefTokensPerConvo;
 
     // Tool results injected into context after each use
     totalInputTokens += toolCallsPerConvo * AVG_TOOL_RESULT_TOKENS;
@@ -156,7 +149,10 @@ export function calculateCosts(
 
     // Optimization: prompt caching (Day 1: 90% off cached reads)
     const systemPromptTokens = 500;
-    const cacheableTokens = systemPromptTokens + toolDefTokens;
+    // Cacheable = system prompt + tool definitions (sent once, cached for subsequent calls)
+    const totalToolDefTokens = agents.reduce((sum, a) =>
+      sum + (a.has_tools ? a.tool_count * TOOL_DEF_OVERHEAD_TOKENS : 0), 0);
+    const cacheableTokens = systemPromptTokens + totalToolDefTokens;
     const cachingApplicable = cacheableTokens >= CACHE_MIN_TOKENS;
 
     let cachingSavingsPerConvo = 0;

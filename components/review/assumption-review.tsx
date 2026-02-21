@@ -152,7 +152,8 @@ export default function AssumptionReview({
                   <input
                     type="number"
                     value={parsed.daily_conversations}
-                    onChange={(e) => updateField("daily_conversations", parseInt(e.target.value) || 0)}
+                    min={1}
+                    onChange={(e) => updateField("daily_conversations", Math.max(1, parseInt(e.target.value) || 1))}
                     className="w-full mt-1 bg-[var(--bg-secondary)] border border-[var(--border)] rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[var(--accent)]"
                   />
                 </div>
@@ -161,7 +162,8 @@ export default function AssumptionReview({
                   <input
                     type="number"
                     value={parsed.avg_turns_per_conversation}
-                    onChange={(e) => updateField("avg_turns_per_conversation", parseInt(e.target.value) || 0)}
+                    min={1}
+                    onChange={(e) => updateField("avg_turns_per_conversation", Math.max(1, parseInt(e.target.value) || 1))}
                     className="w-full mt-1 bg-[var(--bg-secondary)] border border-[var(--border)] rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[var(--accent)]"
                   />
                 </div>

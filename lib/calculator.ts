@@ -69,9 +69,15 @@ export function calculateCosts(
     // Step 2: Tool overhead (Day 2: 1 tool use = 2 API calls)
     let toolCallsPerConvo = 0;
     let toolDefTokensPerConvo = 0;
+    // Track per-agent call counts for accurate caching savings
+    const agentCallCounts: number[] = [];
 
-    for (const agent of agents) {
-      if (!agent.has_tools) continue;
+    for (let ai = 0; ai < agents.length; ai++) {
+      const agent = agents[ai];
+      if (!agent.has_tools) {
+        agentCallCounts.push(0);
+        continue;
+      }
 
       const usesMap = {
         low: agent.tool_count * 1,
@@ -81,6 +87,7 @@ export function calculateCosts(
       const uses = usesMap[scenario];
       const agentCalls = uses * API_CALLS_PER_TOOL_USE;
       toolCallsPerConvo += agentCalls;
+      agentCallCounts.push(agentCalls);
 
       // Each API call to this agent includes its tool definitions
       // Optimization: tool-specific routing sends only 1 tool def per call
@@ -152,29 +159,37 @@ export function calculateCosts(
     let outputCost = (totalOutputTokens / 1_000_000) * pricing.output;
 
     // Optimization: prompt caching (Day 1: 90% off cached reads)
-    const systemPromptTokens = 500;
-    // Cacheable = system prompt + tool definitions (sent once, cached for subsequent calls)
-    const totalToolDefTokens = agents.reduce((sum, a) =>
-      sum + (a.has_tools ? a.tool_count * TOOL_DEF_OVERHEAD_TOKENS : 0), 0);
-    const cacheableTokens = systemPromptTokens + totalToolDefTokens;
-    const cachingApplicable = cacheableTokens >= CACHE_MIN_TOKENS;
+    // Calculate per-agent: each agent's tool defs are only sent on that agent's calls.
+    // Old formula incorrectly multiplied ALL agents' tool defs by ALL calls.
+    const maxAgentCacheable = Math.max(
+      ...agents.map(a => a.has_tools ? a.tool_count * TOOL_DEF_OVERHEAD_TOKENS : 0), 0
+    );
+    const cachingApplicable = maxAgentCacheable >= CACHE_MIN_TOKENS;
 
     let cachingSavingsPerConvo = 0;
-    if (cachingApplicable && optimizations?.caching_enabled) {
-      // Already caching: subtract savings from input cost
-      cachingSavingsPerConvo =
-        (cacheableTokens / 1_000_000) *
-        pricing.input *
-        (1 - CACHE_READ_DISCOUNT) *
-        (totalCalls - 1);
-      inputCost = Math.max(0, inputCost - cachingSavingsPerConvo);
-    } else if (cachingApplicable) {
-      // Not caching yet: show potential savings
-      cachingSavingsPerConvo =
-        (cacheableTokens / 1_000_000) *
-        pricing.input *
-        (1 - CACHE_READ_DISCOUNT) *
-        (totalCalls - 1);
+    if (cachingApplicable) {
+      // Sum per-agent: each agent's tool defs cached across that agent's calls only
+      for (let ai = 0; ai < agents.length; ai++) {
+        const agent = agents[ai];
+        if (!agent.has_tools || agent.tool_count === 0) continue;
+        const calls = agentCallCounts[ai];
+        if (calls <= 1) continue; // no savings on first call
+        const cacheableForAgent = optimizations?.tool_specific_routing
+          ? TOOL_DEF_OVERHEAD_TOKENS
+          : agent.tool_count * TOOL_DEF_OVERHEAD_TOKENS;
+        cachingSavingsPerConvo +=
+          (cacheableForAgent / 1_000_000) *
+          pricing.input *
+          (1 - CACHE_READ_DISCOUNT) *
+          (calls - 1);
+      }
+      // Safety cap: savings can never exceed input cost
+      cachingSavingsPerConvo = Math.min(cachingSavingsPerConvo, inputCost);
+
+      if (optimizations?.caching_enabled) {
+        // Already caching: subtract savings from input cost
+        inputCost = Math.max(0, inputCost - cachingSavingsPerConvo);
+      }
     }
 
     let costPerConvo = inputCost + outputCost;

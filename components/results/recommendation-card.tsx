@@ -338,9 +338,12 @@ export default function RecommendationCards({ text, costs }: { text: string; cos
         </p>
         <p className="text-sm font-medium">
           {totalSavings > 0 && totalSavings <= (costs ? costs.mid.monthly_cost * 0.6 : 50000) ? (
-            <span className="text-green-400">
-              Save up to <span style={{ fontFamily: "var(--font-mono, monospace)" }}>${totalSavings.toLocaleString()}/mo</span>
-            </span>
+            <>
+              <span className="text-green-400">
+                Save up to <span style={{ fontFamily: "var(--font-mono, monospace)" }}>${totalSavings.toLocaleString()}/mo</span>
+              </span>
+              <span className="text-[#71717a] text-xs ml-1">(vs Normal scenario)</span>
+            </>
           ) : (
             <span className="text-[#a1a1aa]">{recs.length} optimization{recs.length !== 1 ? "s" : ""} found</span>
           )}

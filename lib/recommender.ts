@@ -49,7 +49,7 @@ ${JSON.stringify(parsed, null, 2)}
 COST ESTIMATES (calculated):
 ${JSON.stringify(costs, null, 2)}
 ${optStateBlock}
-IMPORTANT: Calculate ALL estimated savings against the MID scenario only. The mid cost is the primary estimate shown to users. Never calculate savings based on the high scenario.
+IMPORTANT: Calculate ALL estimated savings against the MID scenario only ($${costs.mid.monthly_cost}/mo). Never calculate savings based on the high scenario.
 
 Rank your findings by cost impact, largest savings first. Pattern simplification (up to 4.8x) typically dwarfs model routing (3-15x per agent) which dwarfs memory optimization (up to 55% input savings). Lead with the biggest lever.
 

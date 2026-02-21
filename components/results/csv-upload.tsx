@@ -5,6 +5,7 @@ import type { CostEstimate } from "@/lib/knowledge-base";
 
 interface CSVUploadProps {
   estimate: CostEstimate;
+  analysisId?: string | null;
 }
 
 interface Analysis {
@@ -23,7 +24,7 @@ interface Analysis {
   } | null;
 }
 
-export default function CSVUpload({ estimate }: CSVUploadProps) {
+export default function CSVUpload({ estimate, analysisId }: CSVUploadProps) {
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +53,21 @@ export default function CSVUpload({ estimate }: CSVUploadProps) {
 
       const { analysis: data } = await res.json();
       setAnalysis(data);
+
+      // Link CSV calibration to the analysis record
+      if (analysisId && data?.comparison) {
+        fetch("/api/analytics", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            analysis_id: analysisId,
+            actual_monthly: data.comparison.actual_monthly,
+            diff_pct: data.comparison.difference_pct,
+          }),
+        }).catch(() => {
+          // Silent — calibration logging is non-critical
+        });
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -83,6 +99,21 @@ export default function CSVUpload({ estimate }: CSVUploadProps) {
 
       const { analysis: data } = await res.json();
       setAnalysis(data);
+
+      // Link CSV calibration to the analysis record
+      if (analysisId && data?.comparison) {
+        fetch("/api/analytics", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            analysis_id: analysisId,
+            actual_monthly: data.comparison.actual_monthly,
+            diff_pct: data.comparison.difference_pct,
+          }),
+        }).catch(() => {
+          // Silent — calibration logging is non-critical
+        });
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {

@@ -39,6 +39,11 @@ export default function EstimatePage() {
   const [nonLLMServices, setNonLLMServices] = useState<NonLLMService[]>([]);
   const [usageRefresh, setUsageRefresh] = useState(0);
 
+  // Analytics state
+  const [analysisId, setAnalysisId] = useState<string | null>(null);
+  const [inputMethod, setInputMethod] = useState<"text" | "guided" | "prompt">("text");
+  const [rawDescription, setRawDescription] = useState<string | null>(null);
+
   // Progress bar ref for scroll-into-view
   const calcProgressRef = useRef<HTMLDivElement>(null);
 
@@ -46,6 +51,8 @@ export default function EstimatePage() {
   async function handleDescriptionSubmit(description: string) {
     setLoading(true);
     setError(null);
+    setInputMethod(inputTab === "prompt" ? "prompt" : "text");
+    setRawDescription(description);
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
@@ -86,6 +93,8 @@ export default function EstimatePage() {
 
   // ── Step 1 (guided) → 2: Direct to review with structured data ──
   function handleGuidedSubmit(data: ParsedSystem) {
+    setInputMethod("guided");
+    setRawDescription(null);
     setParsed(data);
     setStep("review");
   }
@@ -143,6 +152,24 @@ export default function EstimatePage() {
 
       await fetch("/api/usage", { method: "POST" });
       setUsageRefresh((n) => n + 1);
+
+      // Log analysis for data moat (fire-and-forget, don't block the UI)
+      fetch("/api/analytics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          input_method: inputMethod,
+          raw_description: rawDescription,
+          parsed: updatedParsed,
+          costs: costData,
+          optimizations: opts,
+          recommendations: recData,
+        }),
+      }).then(res => res.json()).then(data => {
+        if (data.analysis_id) setAnalysisId(data.analysis_id);
+      }).catch(() => {
+        // Analytics failure should never block the user
+      });
 
       setStep("results");
     } catch (err: unknown) {
@@ -335,6 +362,7 @@ export default function EstimatePage() {
             costs={costs}
             recommendations={recommendations}
             optimizations={optimizations}
+            analysisId={analysisId}
             onRecalculate={handleRecalculate}
             onBack={() => setStep("review")}
           />

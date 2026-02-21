@@ -18,6 +18,7 @@ interface ResultsDashboardProps {
   costs: CostEstimate;
   recommendations: string;
   optimizations: OptimizationFlags;
+  analysisId?: string | null;
   onRecalculate: (parsed: ParsedSystem, opts: OptimizationFlags) => void;
   onBack: () => void;
 }
@@ -383,6 +384,7 @@ export default function ResultsDashboard({
   parsed,
   costs,
   recommendations,
+  analysisId,
   onBack,
 }: ResultsDashboardProps) {
   const [showBreakdown, setShowBreakdown] = useState(false);
@@ -658,7 +660,7 @@ export default function ResultsDashboard({
       </div>
 
       {/* CSV Upload (toggleable) */}
-      <div ref={csvRef}>{showCSV && <CSVUpload estimate={costs} />}</div>
+      <div ref={csvRef}>{showCSV && <CSVUpload estimate={costs} analysisId={analysisId} />}</div>
 
       {/* ── Section 7: Footer — email + feedback ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">

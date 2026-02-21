@@ -44,13 +44,28 @@ function parseRecommendationSections(text: string) {
   const costMatch = text.match(
     /=== COST SUMMARY ===([\s\S]*?)(?====[^=]|$)/
   );
-  const optMatch = text.match(
+  // New format: ARCHITECTURE REVIEW + ADDITIONAL OPTIMIZATIONS
+  const archMatch = text.match(
+    /=== ARCHITECTURE REVIEW ===([\s\S]*?)(?====[^=]|$)/
+  );
+  const addOptMatch = text.match(
+    /=== ADDITIONAL OPTIMIZATIONS ===([\s\S]*?)(?====[^=]|$)/
+  );
+  // Legacy format fallback
+  const oldOptMatch = text.match(
     /=== OPTIMIZATION RECOMMENDATIONS ===([\s\S]*?)(?====[^=]|$)/
   );
   const warnMatch = text.match(/=== WARNINGS ===([\s\S]*?)(?====[^=]|$)/);
 
   if (costMatch) sections.costSummary = costMatch[1].trim();
-  if (optMatch) sections.optimizations = optMatch[1].trim();
+  if (archMatch || addOptMatch) {
+    let combined = "";
+    if (archMatch) combined += archMatch[1].trim();
+    if (addOptMatch) combined += "\n\n" + addOptMatch[1].trim();
+    sections.optimizations = combined.trim();
+  } else if (oldOptMatch) {
+    sections.optimizations = oldOptMatch[1].trim();
+  }
   if (warnMatch) sections.warnings = warnMatch[1].trim();
 
   return sections;
@@ -384,9 +399,12 @@ export default function ResultsDashboard({
   parsed,
   costs,
   recommendations,
+  optimizations,
   analysisId,
+  onRecalculate,
   onBack,
 }: ResultsDashboardProps) {
+  const [activeScenario, setActiveScenario] = useState<"low" | "mid" | "high">("mid");
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [showCSV, setShowCSV] = useState(false);
   const [warningsOpen, setWarningsOpen] = useState(false);
@@ -397,13 +415,9 @@ export default function ResultsDashboard({
   const costDriver = calculateCostDriver(parsed);
   const warningItems = parseWarnings(sections.warnings);
 
-  const low = costs.low.monthly_cost;
-  const mid = costs.mid.monthly_cost;
-  const high = costs.high.monthly_cost;
-  const midPosition = high > low ? ((mid - low) / (high - low)) * 100 : 50;
-  const cachingSavings = costs.mid.caching_savings_monthly;
+  const activeCosts = costs[activeScenario];
 
-  const tweetText = `Just estimated my AI agent system costs with AgentQuote:\n\n${parsed.system_name}\n${formatMoney(low)} - ${formatMoney(high)}/month\n${parsed.agents.length} agents, ${parsed.daily_conversations} convos/day\n\nTry it free:`;
+  const tweetText = `Just estimated my AI agent system costs with AgentQuote:\n\n${parsed.system_name}\n${formatMoney(costs.low.monthly_cost)} - ${formatMoney(costs.high.monthly_cost)}/month\n${parsed.agents.length} agents, ${parsed.daily_conversations} convos/day\n\nTry it free:`;
   const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
 
   function handleCompare() {
@@ -441,7 +455,7 @@ export default function ResultsDashboard({
         </div>
         <button
           onClick={onBack}
-          className="text-xs text-[#a1a1aa] hover:text-[#e4e4e7] border border-[#27272a] hover:border-[#3f3f46] rounded-lg px-3 py-1.5 transition-colors"
+          className="text-xs text-[#22c55e] hover:text-[#22c55e]/80 border border-[#22c55e]/30 hover:border-[#22c55e]/50 rounded-lg px-3 py-1.5 transition-colors"
         >
           ← Edit Assumptions
         </button>
@@ -464,54 +478,45 @@ export default function ResultsDashboard({
             className="text-[48px] font-bold text-white mt-2 tracking-tight"
             style={{ fontFamily: "var(--font-mono, monospace)" }}
           >
-            {formatMoney(mid)}
+            {formatMoney(activeCosts.monthly_cost)}
           </p>
           <p className="text-[13px] text-[#71717a] mt-1">
-            {formatMoney(costs.mid.cost_per_conversation)} per conversation ·{" "}
-            {formatMoney(costs.mid.daily_cost)} per day
+            {formatMoney(activeCosts.cost_per_conversation)} per conversation ·{" "}
+            {formatMoney(activeCosts.daily_cost)} per day
           </p>
         </div>
 
-        {/* Range bar */}
-        <div className="mt-6 px-2">
-          <div className="relative">
-            <div
-              className="h-[6px] rounded-full"
-              style={{
-                background:
-                  "linear-gradient(to right, #166534, #713f12, #7f1d1d)",
-              }}
-            />
-            <div
-              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white border-2 border-[#22c55e]"
-              style={{ left: `${midPosition}%`, marginLeft: -6 }}
-            />
-          </div>
-          <div className="flex justify-between mt-2">
-            <div>
-              <p className="text-[11px] text-[#52525b]">Best case</p>
-              <p
-                className="text-lg text-[#a1a1aa] font-medium"
-                style={{ fontFamily: "var(--font-mono, monospace)" }}
-              >
-                {formatMoney(low)}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-[11px] text-[#52525b]">Worst case</p>
-              <p
-                className="text-lg text-[#a1a1aa] font-medium"
-                style={{ fontFamily: "var(--font-mono, monospace)" }}
-              >
-                {formatMoney(high)}
-              </p>
-            </div>
-          </div>
+        {/* Scenario toggle */}
+        <div className="flex items-center justify-center gap-1 mt-4 p-1 bg-[#0a0a0f] rounded-lg w-fit mx-auto">
+          {([
+            { key: "low" as const, label: "Light" },
+            { key: "mid" as const, label: "Normal" },
+            { key: "high" as const, label: "Heavy" },
+          ]).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setActiveScenario(key)}
+              className={`px-4 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                activeScenario === key
+                  ? "bg-[#22c55e]/15 text-[#22c55e] border border-[#22c55e]/30"
+                  : "text-[#71717a] hover:text-[#a1a1aa] border border-transparent"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
+        <p className="text-center text-[11px] text-[#52525b] mt-2">
+          {activeScenario === "low"
+            ? "Tools fire once, low failure rate"
+            : activeScenario === "mid"
+              ? "Tools fire 2x, moderate failures"
+              : "Tools fire 4x, high failure rate"}
+        </p>
 
-        {cachingSavings > 0 && (
+        {!optimizations.caching_enabled && activeCosts.caching_savings_monthly > 0 && (
           <p className="text-center text-[12px] text-[#52525b] mt-4">
-            With prompt caching, save up to {formatMoney(cachingSavings)}/mo
+            With prompt caching, save up to {formatMoney(activeCosts.caching_savings_monthly)}/mo
           </p>
         )}
       </div>
@@ -544,12 +549,12 @@ export default function ResultsDashboard({
             </div>
           ) : (
             <span className="text-sm text-[#a1a1aa]">
-              {costs.mid.primary_model
+              {activeCosts.primary_model
                 .replace("claude-", "")
                 .replace(/-4-5$/, "")
                 .replace(/-/g, " ")}{" "}
-              · {formatMoney(costs.mid.monthly_cost)}/mo ·{" "}
-              {costs.mid.total_calls_per_convo} API calls/convo
+              · {formatMoney(activeCosts.monthly_cost)}/mo ·{" "}
+              {activeCosts.total_calls_per_convo} API calls/convo
             </span>
           )}
         </div>
@@ -561,7 +566,7 @@ export default function ResultsDashboard({
       {/* ── Section 4: Recommendations ── */}
       {sections.optimizations && (
         <div className="mb-6">
-          <RecommendationCards text={sections.optimizations} />
+          <RecommendationCards text={sections.optimizations} costs={costs} />
         </div>
       )}
 

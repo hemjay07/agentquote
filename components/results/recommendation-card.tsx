@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { CostEstimate } from "@/lib/knowledge-base";
 
 interface Recommendation {
   title: string;
@@ -284,7 +285,7 @@ function renderInline(text: string): React.ReactNode[] {
 
 // ── Main component ──
 
-export default function RecommendationCards({ text }: { text: string }) {
+export default function RecommendationCards({ text, costs }: { text: string; costs?: CostEstimate }) {
   const recs = parseRecommendations(text);
   const [expanded, setExpanded] = useState<number | null>(null);
   const [showFullAnalysis, setShowFullAnalysis] = useState<number | null>(null);
@@ -336,7 +337,7 @@ export default function RecommendationCards({ text }: { text: string }) {
           Optimizations
         </p>
         <p className="text-sm font-medium">
-          {totalSavings > 0 && totalSavings <= 50000 ? (
+          {totalSavings > 0 && totalSavings <= (costs ? costs.mid.monthly_cost * 0.6 : 50000) ? (
             <span className="text-green-400">
               Save up to <span style={{ fontFamily: "var(--font-mono, monospace)" }}>${totalSavings.toLocaleString()}/mo</span>
             </span>

@@ -141,7 +141,7 @@ export default function EstimatePage() {
       const recRes = await fetch("/api/recommend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ parsed: updatedParsed, costs: costData }),
+        body: JSON.stringify({ parsed: updatedParsed, costs: costData, optimizations: opts }),
         signal: controller.signal,
       });
       clearTimeout(timeout);

@@ -7,7 +7,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
-import type { ParsedSystem, CostEstimate } from "./knowledge-base";
+import type { ParsedSystem, CostEstimate, OptimizationFlags } from "./knowledge-base";
 
 /**
  * Claude analyzes the system + costs and generates recommendations.
@@ -15,17 +15,43 @@ import type { ParsedSystem, CostEstimate } from "./knowledge-base";
  */
 export async function generateRecommendations(
   parsed: ParsedSystem,
-  costs: CostEstimate
+  costs: CostEstimate,
+  optimizations?: OptimizationFlags
 ): Promise<string> {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-  const prompt = `You are an AI systems cost optimization expert. Analyze this system and provide recommendations.
+  // Build optimization state awareness block
+  const enabledOpts: string[] = [];
+  const disabledOpts: string[] = [];
+  if (optimizations) {
+    if (optimizations.caching_enabled) enabledOpts.push("Prompt caching");
+    else disabledOpts.push("Prompt caching (90% savings on cached reads)");
+    if (optimizations.batch_processing) enabledOpts.push("Batch processing (50% off)");
+    else disabledOpts.push("Batch processing (50% off)");
+    if (optimizations.loop_detection) enabledOpts.push("Loop/failure detection");
+    else disabledOpts.push("Loop/failure detection (saved 49% in tests)");
+    if (optimizations.tool_specific_routing) enabledOpts.push("Tool-specific routing");
+    else disabledOpts.push("Tool-specific routing (saves ~500 tokens/call)");
+  }
+
+  const optStateBlock = optimizations
+    ? `\nCURRENT OPTIMIZATION STATE:
+${enabledOpts.length > 0 ? `Already enabled: ${enabledOpts.join(", ")}` : "No optimizations enabled yet."}
+${disabledOpts.length > 0 ? `Not yet enabled: ${disabledOpts.join(", ")}` : "All optimizations enabled."}
+Focus your ARCHITECTURE REVIEW on this system's specific design choices. In ADDITIONAL OPTIMIZATIONS, only recommend optimizations that are NOT already enabled.\n`
+    : "";
+
+  const prompt = `You are an AI systems cost optimization expert. Analyze this specific system and provide a personalized review.
 
 SYSTEM ARCHITECTURE (parsed):
 ${JSON.stringify(parsed, null, 2)}
 
 COST ESTIMATES (calculated):
 ${JSON.stringify(costs, null, 2)}
+${optStateBlock}
+IMPORTANT: Calculate ALL estimated savings against the MID scenario only. The mid cost is the primary estimate shown to users. Never calculate savings based on the high scenario.
+
+Rank your findings by cost impact, largest savings first. Pattern simplification (up to 4.8x) typically dwarfs model routing (3-15x per agent) which dwarfs memory optimization (up to 55% input savings). Lead with the biggest lever.
 
 You MUST respond in EXACTLY this format. Do NOT deviate. Do NOT use emojis. Do NOT add extra sections.
 
@@ -40,20 +66,35 @@ BIGGEST COST DRIVER: [agent name] ([percentage]% of total cost)
 - [reason 1]
 - [reason 2]
 
-=== OPTIMIZATION RECOMMENDATIONS ===
+=== ARCHITECTURE REVIEW ===
+Analyze this SPECIFIC system's architecture choices. What is costing the most and why?
+
+1. [Finding about their specific architecture]
+What we found: [analysis specific to THIS system's pattern/models/agents]
+Impact: [dollar amount or percentage of total cost]
+Recommendation: [specific action to take]
+
+2. [Next finding]
+What we found: [specific analysis]
+Impact: [dollar amount or percentage]
+Recommendation: [specific action]
+
+(List 2-4 findings. Focus on: pattern efficiency, model choices, agent count, memory strategy, tool overhead. Be specific to THIS system — reference their actual agent names, models, and numbers.)
+
+=== ADDITIONAL OPTIMIZATIONS ===
 1. [Short title of optimization]
 What to change: [specific description]
 Estimated savings: [dollar amount]/mo or [percentage]%
 Quality impact: [none|minor|moderate|significant]
 Implementation difficulty: [easy|moderate|hard]
 
-2. [Short title of next optimization]
+2. [Next optimization]
 What to change: [specific description]
 Estimated savings: [dollar amount]/mo or [percentage]%
 Quality impact: [none|minor|moderate|significant]
 Implementation difficulty: [easy|moderate|hard]
 
-(List 3-5 recommendations ranked by savings. Use the exact field labels above.)
+(List 2-4 optimizations ranked by savings. Only recommend optimizations the user has NOT already enabled. Use the exact field labels above.)
 
 Base recommendations on these PROVEN findings:
 - Pattern simplification: could a simpler pattern work? (multi-agent to single agent saved 4.8x in our tests)
@@ -85,7 +126,7 @@ Base recommendations on these PROVEN findings:
     model: "claude-haiku-4-5-20251001",
     max_tokens: 4096,
     system:
-      "You are a senior AI systems architect specializing in cost optimization. Be specific, cite numbers, and rank recommendations by impact. Follow the output format EXACTLY as specified - use pipe tables, numbered lists, and the exact field labels shown. Do NOT use emojis anywhere in your response.",
+      "You are a senior AI systems architect specializing in cost optimization. Be specific to the user's actual system — reference their agent names, model choices, and numbers. Cite specific dollar amounts and percentages. Follow the output format EXACTLY as specified. Do NOT use emojis anywhere in your response.",
     messages: [{ role: "user", content: prompt }],
   });
 

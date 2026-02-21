@@ -6,11 +6,11 @@
 
 import { NextResponse } from "next/server";
 import { generateRecommendations } from "@/lib/recommender";
-import type { ParsedSystem, CostEstimate } from "@/lib/knowledge-base";
+import type { ParsedSystem, CostEstimate, OptimizationFlags } from "@/lib/knowledge-base";
 
 export async function POST(request: Request) {
   try {
-    const { parsed, costs }: { parsed: ParsedSystem; costs: CostEstimate } =
+    const { parsed, costs, optimizations }: { parsed: ParsedSystem; costs: CostEstimate; optimizations?: OptimizationFlags } =
       await request.json();
 
     if (!parsed || !costs) {
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const recommendations = await generateRecommendations(parsed, costs);
+    const recommendations = await generateRecommendations(parsed, costs, optimizations);
 
     return NextResponse.json({ recommendations });
   } catch (error) {

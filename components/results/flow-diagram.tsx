@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import type { ParsedSystem } from "@/lib/knowledge-base";
-import { MODEL_PRICING } from "@/lib/knowledge-base";
+import { MODEL_PRICING, API_CALLS_PER_TOOL_USE, TOOL_DEF_OVERHEAD_TOKENS } from "@/lib/knowledge-base";
 
 // Layout constants — bigger boxes for full-width
 const BOX_W = 160;
@@ -33,23 +33,30 @@ function modelTierFill(model: string): string {
   return "rgba(239,68,68,0.05)";
 }
 
-// Rough per-agent cost % based on model pricing + tool overhead
+// Per-agent cost % weighted by model pricing × API call volume
 function estimateAgentCosts(parsed: ParsedSystem): Record<string, number> {
   const scores: Record<string, number> = {};
   let total = 0;
 
   for (const agent of parsed.agents) {
     const pricing = MODEL_PRICING[agent.model];
-    const score = pricing
-      ? pricing.output + (agent.has_tools ? agent.tool_count * 2 : 0)
-      : 5;
+    if (!pricing) {
+      scores[agent.name] = 5;
+      total += 5;
+      continue;
+    }
+    const modelCost = pricing.input + pricing.output;
+    const toolCalls = agent.has_tools ? agent.tool_count * 2 * API_CALLS_PER_TOOL_USE : 0;
+    const toolDefOverhead = agent.has_tools ? agent.tool_count * TOOL_DEF_OVERHEAD_TOKENS : 0;
+    const estimatedCalls = 1 + toolCalls;
+    const score = modelCost * estimatedCalls + (toolDefOverhead * pricing.input / 1_000_000) * estimatedCalls;
     scores[agent.name] = score;
     total += score;
   }
 
   const pcts: Record<string, number> = {};
   for (const name in scores) {
-    pcts[name] = Math.round((scores[name] / total) * 100);
+    pcts[name] = total > 0 ? Math.round((scores[name] / total) * 100) : 0;
   }
   return pcts;
 }

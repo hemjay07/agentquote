@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { MODEL_PRICING } from "./knowledge-base";
 
 export interface BlogPost {
   slug: string;
@@ -44,12 +45,9 @@ export const BLOG_POSTS: BlogPost[] = [
             <tr><th>Model</th><th>Input/MTok</th><th>Output/MTok</th></tr>
           </thead>
           <tbody>
-            <tr><td>Claude Haiku 4.5</td><td>$1.00</td><td>$5.00</td></tr>
-            <tr><td>Claude Sonnet 4.5</td><td>$3.00</td><td>$15.00</td></tr>
-            <tr><td>Claude Opus 4.5</td><td>$5.00</td><td>$25.00</td></tr>
-            <tr><td>GPT-4o</td><td>$2.50</td><td>$10.00</td></tr>
-            <tr><td>GPT-4o Mini</td><td>$0.15</td><td>$0.60</td></tr>
-            <tr><td>DeepSeek V3</td><td>$0.28</td><td>$0.42</td></tr>
+            {Object.values(MODEL_PRICING).map((m) => (
+              <tr key={m.label}><td>{m.label}</td><td>${m.input.toFixed(2)}</td><td>${m.output.toFixed(2)}</td></tr>
+            ))}
           </tbody>
         </table>
         <p>

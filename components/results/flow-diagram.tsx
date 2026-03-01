@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import type { ParsedSystem } from "@/lib/knowledge-base";
-import { MODEL_PRICING, API_CALLS_PER_TOOL_USE, TOOL_DEF_OVERHEAD_TOKENS } from "@/lib/knowledge-base";
+import { MODEL_PRICING, MODEL_TIER_THRESHOLDS, API_CALLS_PER_TOOL_USE, TOOL_DEF_OVERHEAD_TOKENS } from "@/lib/knowledge-base";
 
 // Layout constants — bigger boxes for full-width
 const BOX_W = 160;
@@ -20,16 +20,16 @@ const LABEL_H = 30;
 function modelTierColor(model: string): string {
   const pricing = MODEL_PRICING[model];
   if (!pricing) return "#60a5fa";
-  if (pricing.output <= 5) return "#22c55e";
-  if (pricing.output <= 15) return "#60a5fa";
+  if (pricing.output <= MODEL_TIER_THRESHOLDS.cheap) return "#22c55e";
+  if (pricing.output <= MODEL_TIER_THRESHOLDS.mid) return "#60a5fa";
   return "#ef4444";
 }
 
 function modelTierFill(model: string): string {
   const pricing = MODEL_PRICING[model];
   if (!pricing) return "rgba(96,165,250,0.05)";
-  if (pricing.output <= 5) return "rgba(34,197,94,0.05)";
-  if (pricing.output <= 15) return "rgba(96,165,250,0.05)";
+  if (pricing.output <= MODEL_TIER_THRESHOLDS.cheap) return "rgba(34,197,94,0.05)";
+  if (pricing.output <= MODEL_TIER_THRESHOLDS.mid) return "rgba(96,165,250,0.05)";
   return "rgba(239,68,68,0.05)";
 }
 

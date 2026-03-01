@@ -107,6 +107,12 @@ export const MODEL_PRICING: Record<string, ModelPricing> = {
   "deepseek-v3":        { input: 0.28,  output: 0.42,   label: "DeepSeek V3" },
 };
 
+// Model cost tier thresholds (output $/MTok) — update when MODEL_PRICING changes
+export const MODEL_TIER_THRESHOLDS = {
+  cheap: 5,   // output ≤ 5 = cheap (green)
+  mid: 15,    // output ≤ 15 = mid-tier (blue), output > 15 = expensive (red)
+};
+
 // ── Token Averages ─────────────────────────────────────────
 // Source: Day 5 experiment — measured across 10-turn conversations
 

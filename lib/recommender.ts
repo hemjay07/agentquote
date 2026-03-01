@@ -11,7 +11,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
-import type { ParsedSystem, CostEstimate, OptimizationFlags } from "./knowledge-base";
+import { MODEL_PRICING, type ParsedSystem, type CostEstimate, type OptimizationFlags } from "./knowledge-base";
 
 /**
  * Claude analyzes the system + costs and generates recommendations.
@@ -74,6 +74,9 @@ Focus your ARCHITECTURE REVIEW on this system's specific design choices. In ADDI
     : "";
 
   return `You are an AI systems cost optimization expert. Analyze this specific system and provide a personalized review.
+
+MODEL PRICING (per 1M tokens — use ONLY these prices, do NOT use any other pricing):
+${Object.entries(MODEL_PRICING).map(([k, v]) => `- ${v.label} (${k}): $${v.input}/M input, $${v.output}/M output`).join("\n")}
 
 SYSTEM ARCHITECTURE (parsed):
 ${JSON.stringify(parsed, null, 2)}
@@ -164,6 +167,9 @@ function buildPlanningPrompt(
   costs: CostEstimate
 ): string {
   return `You are an AI systems architect helping someone DESIGN a new system. They haven't built this yet — they're planning. Your job is to help them build it cost-efficiently from the start, not optimize an existing system.
+
+MODEL PRICING (per 1M tokens — use ONLY these prices, do NOT use any other pricing):
+${Object.entries(MODEL_PRICING).map(([k, v]) => `- ${v.label} (${k}): $${v.input}/M input, $${v.output}/M output`).join("\n")}
 
 WHAT THEY WANT TO BUILD (parsed from their description):
 ${JSON.stringify(parsed, null, 2)}

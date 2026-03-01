@@ -116,7 +116,7 @@ export function calculateCosts(
       totalInputTokens = Math.round(triangle * avgTurnInput * mem.token_multiplier);
     }
 
-    let totalOutputTokens = turns * AVG_ASSISTANT_TOKENS;
+    let totalOutputTokens = Math.max(baseCalls, turns) * AVG_ASSISTANT_TOKENS;
 
     // Tool definitions already calculated per-agent × per-call above
     totalInputTokens += toolDefTokensPerConvo;
@@ -139,7 +139,8 @@ export function calculateCosts(
       failureRate *= 0.4; // 60% reduction (Day 3: fuzzy detection saved 49%)
     }
 
-    const expectedFailures = toolCallsPerConvo * failureRate;
+    const failureBasis = Math.max(toolCallsPerConvo, baseCalls);
+    const expectedFailures = failureBasis * failureRate;
     // Cap failure overhead based on guardrails:
     // With loop detection: cap at 100% (guardrails stop runaway loops)
     // Without loop detection: cap at 300% (reflects real risk of unguarded tool spirals)

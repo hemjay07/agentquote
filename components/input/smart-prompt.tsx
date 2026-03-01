@@ -19,10 +19,11 @@ Be specific about numbers where possible.`;
 interface SmartPromptProps {
   onSubmit: (description: string) => void;
   disabled: boolean;
+  initialValue?: string;
 }
 
-export default function SmartPrompt({ onSubmit, disabled }: SmartPromptProps) {
-  const [response, setResponse] = useState("");
+export default function SmartPrompt({ onSubmit, disabled, initialValue = "" }: SmartPromptProps) {
+  const [response, setResponse] = useState(initialValue);
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {

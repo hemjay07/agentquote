@@ -392,8 +392,8 @@ function AgentRow({
                 <input
                   type="number"
                   min={0}
-                  value={agent.tool_count}
-                  onChange={(e) => onUpdate(index, "tool_count", parseInt(e.target.value) || 0)}
+                  value={agent.tool_count || ""}
+                  onChange={(e) => onUpdate(index, "tool_count", e.target.value === "" ? 0 : parseInt(e.target.value) || 0)}
                   disabled={!agent.has_tools}
                   className="w-full mt-1 bg-[var(--bg-secondary)] border border-[var(--border)] rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[var(--accent)] disabled:opacity-40"
                 />

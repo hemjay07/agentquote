@@ -20,6 +20,7 @@ Extract structured information from a natural language description of an AI agen
 Return ONLY valid JSON with this exact structure:
 {
     "system_name": "short name for the system",
+    "system_stage": "planning or existing",
     "agents": [
         {
             "name": "agent name",
@@ -43,6 +44,10 @@ Return ONLY valid JSON with this exact structure:
 }
 
 RULES:
+- Detect system_stage from language cues:
+  "planning" if the user uses aspirational/future language: "want to build", "would love to", "thinking about", "planning to", "considering", "maybe", "idea for", "looking to create", "we need", "we want"
+  "existing" if the user describes a system that already exists: "we have", "our system", "currently running", "we built", "we use", "is running", or describes specifics with certainty and present tense
+  Default to "existing" if unclear.
 - If the user doesn't specify a model, default to "claude-sonnet-4-5"
 - If memory strategy isn't mentioned, infer from conversation length:
   exactly 1 turn: "none", 2-15 turns: "buffer", 16-40 turns: "entity", 40+ turns: "summary"
@@ -222,6 +227,12 @@ function validateAndNormalize(parsed: ParsedSystem): ParsedSystem {
     else if (turns <= 15) parsed.memory_strategy = "buffer";
     else if (turns <= 40) parsed.memory_strategy = "entity";
     else parsed.memory_strategy = "summary";
+  }
+
+  // ── Validate system_stage ──
+  const VALID_STAGES = new Set(["planning", "existing"]);
+  if (!parsed.system_stage || !VALID_STAGES.has(parsed.system_stage)) {
+    parsed.system_stage = "existing";
   }
 
   // ── Ensure reasonable defaults ──

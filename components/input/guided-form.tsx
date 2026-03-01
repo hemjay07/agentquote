@@ -63,6 +63,7 @@ export default function GuidedForm({ onSubmit, disabled }: GuidedFormProps) {
   function handleSubmit() {
     const data: ParsedSystem = {
       system_name: systemName || "Custom System",
+      system_stage: "existing",
       agents: agents.map(({ _id, ...rest }) => rest),
       pattern,
       memory_strategy: memory,

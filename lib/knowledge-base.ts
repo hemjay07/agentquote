@@ -44,6 +44,7 @@ export interface ParsedAgent {
 
 export interface ParsedSystem {
   system_name: string;
+  system_stage: "planning" | "existing";
   agents: ParsedAgent[];
   pattern: string;
   memory_strategy: string;
@@ -100,7 +101,7 @@ export interface NonLLMService {
 export const MODEL_PRICING: Record<string, ModelPricing> = {
   "claude-haiku-4-5":   { input: 1.00,  output: 5.00,   label: "Haiku 4.5" },
   "claude-sonnet-4-5":  { input: 3.00,  output: 15.00,  label: "Sonnet 4.5" },
-  "claude-opus-4-5":    { input: 15.00, output: 75.00,  label: "Opus 4.5" },
+  "claude-opus-4-5":    { input: 5.00,  output: 25.00,  label: "Opus 4.5" },
   "gpt-4o":             { input: 2.50,  output: 10.00,  label: "GPT-4o" },
   "gpt-4o-mini":        { input: 0.15,  output: 0.60,   label: "GPT-4o Mini" },
   "deepseek-v3":        { input: 0.28,  output: 0.42,   label: "DeepSeek V3" },

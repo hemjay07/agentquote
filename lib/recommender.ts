@@ -4,6 +4,10 @@
  *
  * Input: parsed structure + calculated costs
  * Output: cost summary + ranked optimizations + warnings
+ *
+ * Adapts output based on system_stage:
+ * - "existing": optimize what you have (current behavior)
+ * - "planning": how to build it right from the start
  */
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -20,6 +24,34 @@ export async function generateRecommendations(
 ): Promise<string> {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+  const isPlanning = parsed.system_stage === "planning";
+  const prompt = isPlanning
+    ? buildPlanningPrompt(parsed, costs)
+    : buildExistingPrompt(parsed, costs, optimizations);
+
+  const systemMsg = isPlanning
+    ? "You are a senior AI systems architect helping someone design a new system from scratch. Be specific to their described use case — reference their agent concepts, models, and numbers. Cite specific dollar amounts and percentages. Follow the output format EXACTLY as specified. Do NOT use emojis anywhere in your response."
+    : "You are a senior AI systems architect specializing in cost optimization. Be specific to the user's actual system — reference their agent names, model choices, and numbers. Cite specific dollar amounts and percentages. Follow the output format EXACTLY as specified. Do NOT use emojis anywhere in your response.";
+
+  const message = await client.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 4096,
+    system: systemMsg,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  return message.content[0].type === "text" ? message.content[0].text : "";
+}
+
+
+/**
+ * Prompt for users with an existing system — optimize what you have.
+ */
+function buildExistingPrompt(
+  parsed: ParsedSystem,
+  costs: CostEstimate,
+  optimizations?: OptimizationFlags
+): string {
   // Build optimization state awareness block
   const enabledOpts: string[] = [];
   const disabledOpts: string[] = [];
@@ -41,7 +73,7 @@ ${disabledOpts.length > 0 ? `Not yet enabled: ${disabledOpts.join(", ")}` : "All
 Focus your ARCHITECTURE REVIEW on this system's specific design choices. In ADDITIONAL OPTIMIZATIONS, only recommend optimizations that are NOT already enabled.\n`
     : "";
 
-  const prompt = `You are an AI systems cost optimization expert. Analyze this specific system and provide a personalized review.
+  return `You are an AI systems cost optimization expert. Analyze this specific system and provide a personalized review.
 
 SYSTEM ARCHITECTURE (parsed):
 ${JSON.stringify(parsed, null, 2)}
@@ -121,14 +153,94 @@ Base recommendations on these PROVEN findings:
 - Missing guardrails (no max iterations, no cost budgets)
 - Tool agents without failure handling
 - Multi-agent for tasks a single agent could handle (4.8x overhead)`;
+}
 
-  const message = await client.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 4096,
-    system:
-      "You are a senior AI systems architect specializing in cost optimization. Be specific to the user's actual system — reference their agent names, model choices, and numbers. Cite specific dollar amounts and percentages. Follow the output format EXACTLY as specified. Do NOT use emojis anywhere in your response.",
-    messages: [{ role: "user", content: prompt }],
-  });
 
-  return message.content[0].type === "text" ? message.content[0].text : "";
+/**
+ * Prompt for users who are PLANNING a system — help them build it right.
+ */
+function buildPlanningPrompt(
+  parsed: ParsedSystem,
+  costs: CostEstimate
+): string {
+  return `You are an AI systems architect helping someone DESIGN a new system. They haven't built this yet — they're planning. Your job is to help them build it cost-efficiently from the start, not optimize an existing system.
+
+WHAT THEY WANT TO BUILD (parsed from their description):
+${JSON.stringify(parsed, null, 2)}
+
+PROJECTED COSTS (if built as described):
+${JSON.stringify(costs, null, 2)}
+
+IMPORTANT: Calculate ALL estimated savings against the MID scenario only ($${costs.mid.monthly_cost}/mo). Never calculate savings based on the high scenario.
+
+Rank your findings by cost impact, largest savings first. The user hasn't built anything yet, so every recommendation is about how to START RIGHT rather than how to fix something.
+
+You MUST respond in EXACTLY this format. Do NOT deviate. Do NOT use emojis. Do NOT add extra sections.
+
+=== COST SUMMARY ===
+| Scenario | Monthly Cost | Daily Cost | Cost/Conversation |
+|----------|-------------|-----------|-------------------|
+| Low | $X | $X | $X |
+| Mid | $X | $X | $X |
+| High | $X | $X | $X |
+
+BIGGEST COST DRIVER: [agent/component name] ([percentage]% of projected cost)
+- [reason 1]
+- [reason 2]
+
+=== RECOMMENDED ARCHITECTURE ===
+Based on what you want to build, here is how we would architect it for cost efficiency from day one.
+
+1. [Architecture recommendation]
+What we recommend: [specific architecture advice — e.g. "Start with 2 agents instead of 4", "Use Haiku for the classifier agent"]
+Why: [explanation grounded in real data]
+Projected savings: [dollar amount or percentage vs the naive approach above]
+
+2. [Next recommendation]
+What we recommend: [specific advice]
+Why: [explanation]
+Projected savings: [dollar amount or percentage]
+
+(List 2-4 recommendations. Focus on: optimal agent count, right model per agent, best pattern choice, memory strategy selection. Be specific to THEIR use case — reference their described functionality, not generic advice.)
+
+=== BUILD-RIGHT-FIRST TIPS ===
+1. [Short title]
+What to do: [specific implementation guidance for building this from scratch]
+Estimated savings: [dollar amount]/mo or [percentage]%
+Quality impact: [none|minor|moderate|significant]
+Implementation difficulty: [easy|moderate|hard]
+
+2. [Next tip]
+What to do: [specific guidance]
+Estimated savings: [dollar amount]/mo or [percentage]%
+Quality impact: [none|minor|moderate|significant]
+Implementation difficulty: [easy|moderate|hard]
+
+(List 2-4 tips ranked by savings. Use the exact field labels above.)
+
+Base recommendations on these PROVEN findings:
+- Pattern simplification: does this need multiple agents? (multi-agent to single agent saved 4.8x in our tests)
+- Model routing: which agents can use cheaper models? (Haiku for classification/simple judgment saves 3-15x)
+- Memory strategy: what's optimal for the expected conversation length? (entity memory saved 55% of input tokens vs buffer in our tests)
+- Caching: enable prompt caching from day one if system prompt + tool definitions exceed 1,024 tokens (90% savings on reads)
+- Fuzzy loop detection: build in max failure thresholds per tool from the start (saved 49% in our tests)
+- Context truncation: design agent handoffs to pass only essential fields, not full context
+- Separate call functions: agents without tools should NOT receive tool definitions (saves ~500 tokens per call)
+
+=== PLANNING PITFALLS ===
+1. [Pitfall title]
+- [detail line explaining the risk]
+- [detail line with data]
+- AVOID BY: [specific preventive action to take when building]
+
+2. [Pitfall title]
+- [detail line]
+- AVOID BY: [specific preventive action]
+
+(Use numbered list. Flag these common mistakes:)
+- Over-engineering with too many agents when fewer would work (4.8x overhead measured)
+- Using expensive models for simple tasks (Sonnet for classification when Haiku suffices)
+- Missing guardrails from the start (no max iterations, no cost budgets — add these on day one)
+- Not enabling prompt caching at launch (leaving 90% savings on the table)
+- 200K context trap risk (if input might exceed 200K tokens, ALL pricing doubles)`;
 }

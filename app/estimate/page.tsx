@@ -74,9 +74,6 @@ export default function EstimatePage() {
       const { parsed: parsedData } = await parseRes.json();
       setParsed(parsedData);
 
-      await fetch("/api/usage", { method: "POST" });
-      setUsageRefresh((n) => n + 1);
-
       setStep("review");
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === "AbortError") {
@@ -315,6 +312,7 @@ export default function EstimatePage() {
               <TextInput
                 onSubmit={handleDescriptionSubmit}
                 disabled={loading}
+                initialValue={rawDescription || ""}
               />
             )}
             {inputTab === "guided" && (
@@ -324,6 +322,7 @@ export default function EstimatePage() {
               <SmartPrompt
                 onSubmit={handleDescriptionSubmit}
                 disabled={loading}
+                initialValue={rawDescription || ""}
               />
             )}
           </div>

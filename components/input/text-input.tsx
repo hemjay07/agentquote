@@ -2,20 +2,18 @@
 
 import { useState } from "react";
 
-const PLACEHOLDER = `Example: I have a customer service bot with RAG for our knowledge base. There's a supervisor agent that routes queries to 3 specialists:
-- Billing agent with access to our billing API
-- Technical agent with docs search and ticket system
-- General agent for FAQs
+const PLACEHOLDER = `Describe your AI agent system — or the one you're planning to build...
 
-We expect 500 conversations/day, averaging 8 turns each. Using Claude Sonnet for specialists and Haiku for the router.`;
+Example: A customer service bot with RAG for our knowledge base. A supervisor routes queries to 3 specialists (billing, technical, general). 500 conversations/day, 8 turns each. Sonnet for specialists, Haiku for the router.`;
 
 interface TextInputProps {
   onSubmit: (description: string) => void;
   disabled: boolean;
+  initialValue?: string;
 }
 
-export default function TextInput({ onSubmit, disabled }: TextInputProps) {
-  const [description, setDescription] = useState("");
+export default function TextInput({ onSubmit, disabled, initialValue = "" }: TextInputProps) {
+  const [description, setDescription] = useState(initialValue);
 
   return (
     <div>
